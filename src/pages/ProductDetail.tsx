@@ -105,6 +105,32 @@ const ProductDetail = () => {
     }
   };
   
+  // Get appropriate image based on category
+  const getProductImage = (category?: string) => {
+    if (!category) return '/appliance.jpg';
+    
+    switch (category) {
+      case 'refrigerators':
+        return '/refrigerator.jpg';
+      case 'washing-machines':
+        return '/washing-machine.jpg';
+      case 'tvs':
+        return '/tv.jpg';
+      case 'kitchen':
+        return product?.name.toLowerCase().includes('микроволнов') 
+          ? '/microwave.jpg' 
+          : product?.name.toLowerCase().includes('кофемашин') 
+            ? '/coffee-machine.jpg'
+            : '/kitchen-appliance.jpg';
+      case 'air-conditioners':
+        return '/air-conditioner.jpg';
+      case 'vacuum-cleaners':
+        return '/vacuum-cleaner.jpg';
+      default:
+        return '/appliance.jpg';
+    }
+  };
+  
   if (!product) {
     return <div>Loading...</div>;
   }
@@ -142,7 +168,7 @@ const ProductDetail = () => {
               {/* Product Image */}
               <div className="flex justify-center items-center bg-belek-gray rounded-lg p-8">
                 <img 
-                  src={product.image} 
+                  src={getProductImage(product.category)} 
                   alt={product.name}
                   className="max-w-full max-h-[400px] object-contain"
                 />

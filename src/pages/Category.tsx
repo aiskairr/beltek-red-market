@@ -119,6 +119,16 @@ const categoryNames: Record<string, string> = {
   'vacuum-cleaners': 'Пылесосы',
 };
 
+const categoryImages: Record<string, string> = {
+  'all': '/all-appliances.jpg',
+  'refrigerators': '/category-refrigerators.jpg',
+  'washing-machines': '/category-washing-machines.jpg',
+  'tvs': '/category-tvs.jpg',
+  'kitchen': '/category-kitchen.jpg',
+  'air-conditioners': '/category-air-conditioners.jpg',
+  'vacuum-cleaners': '/category-vacuum-cleaners.jpg',
+};
+
 const brands = ['LG', 'Samsung', 'Ferre', 'Blesk', 'Midea', 'Бирюса', 'Vestel', 'Avangard', 'Indesit', 'Avest', 'Техномир'];
 
 const Category = () => {
@@ -195,7 +205,16 @@ const Category = () => {
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2">{categoryNames[categorySlug] || 'Товары'}</h1>
+          <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
+            <img 
+              src={categoryImages[categorySlug] || categoryImages['all']} 
+              alt={categoryNames[categorySlug]} 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <h1 className="text-3xl font-bold text-white">{categoryNames[categorySlug] || 'Товары'}</h1>
+            </div>
+          </div>
           <p className="text-gray-600">Найдено товаров: {filteredProducts.length}</p>
         </div>
         

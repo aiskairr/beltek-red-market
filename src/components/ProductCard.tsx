@@ -16,12 +16,36 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     addItem(product);
   };
 
+  // Get appropriate image based on category
+  const getProductImage = () => {
+    switch (product.category) {
+      case 'refrigerators':
+        return '/refrigerator.jpg';
+      case 'washing-machines':
+        return '/washing-machine.jpg';
+      case 'tvs':
+        return '/tv.jpg';
+      case 'kitchen':
+        return product.name.toLowerCase().includes('микроволнов') 
+          ? '/microwave.jpg' 
+          : product.name.toLowerCase().includes('кофемашин') 
+            ? '/coffee-machine.jpg'
+            : '/kitchen-appliance.jpg';
+      case 'air-conditioners':
+        return '/air-conditioner.jpg';
+      case 'vacuum-cleaners':
+        return '/vacuum-cleaner.jpg';
+      default:
+        return '/appliance.jpg';
+    }
+  };
+
   return (
     <div className="product-card group">
       <Link to={`/product/${product.id}`} className="block">
         <div className="relative pt-[100%] overflow-hidden">
           <img 
-            src={product.image} 
+            src={getProductImage()} 
             alt={product.name} 
             className="absolute top-0 left-0 w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
           />

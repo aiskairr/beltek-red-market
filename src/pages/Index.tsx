@@ -81,24 +81,24 @@ const discountedProducts: Product[] = [
 
 // Brands data
 const brands = [
-  { name: 'LG', logo: '/placeholder.svg' },
-  { name: 'Samsung', logo: '/placeholder.svg' },
-  { name: 'Ferre', logo: '/placeholder.svg' },
-  { name: 'Blesk', logo: '/placeholder.svg' },
-  { name: 'Midea', logo: '/placeholder.svg' },
-  { name: 'Бирюса', logo: '/placeholder.svg' },
-  { name: 'Vestel', logo: '/placeholder.svg' },
-  { name: 'Avangard', logo: '/placeholder.svg' },
+  { name: 'LG', logo: '/logo-lg.png' },
+  { name: 'Samsung', logo: '/logo-samsung.png' },
+  { name: 'Ferre', logo: '/logo-ferre.png' },
+  { name: 'Blesk', logo: '/logo-blesk.png' },
+  { name: 'Midea', logo: '/logo-midea.png' },
+  { name: 'Бирюса', logo: '/logo-biryusa.png' },
+  { name: 'Vestel', logo: '/logo-vestel.png' },
+  { name: 'Avangard', logo: '/logo-avangard.png' },
 ];
 
 // Categories data
 const categories = [
-  { name: 'Холодильники', image: '/placeholder.svg', slug: 'refrigerators' },
-  { name: 'Стиральные машины', image: '/placeholder.svg', slug: 'washing-machines' },
-  { name: 'Телевизоры', image: '/placeholder.svg', slug: 'tvs' },
-  { name: 'Кухонная техника', image: '/placeholder.svg', slug: 'kitchen' },
-  { name: 'Кондиционеры', image: '/placeholder.svg', slug: 'air-conditioners' },
-  { name: 'Пылесосы', image: '/placeholder.svg', slug: 'vacuum-cleaners' },
+  { name: 'Холодильники', image: '/category-refrigerators.jpg', slug: 'refrigerators' },
+  { name: 'Стиральные машины', image: '/category-washing-machines.jpg', slug: 'washing-machines' },
+  { name: 'Телевизоры', image: '/category-tvs.jpg', slug: 'tvs' },
+  { name: 'Кухонная техника', image: '/category-kitchen.jpg', slug: 'kitchen' },
+  { name: 'Кондиционеры', image: '/category-air-conditioners.jpg', slug: 'air-conditioners' },
+  { name: 'Пылесосы', image: '/category-vacuum-cleaners.jpg', slug: 'vacuum-cleaners' },
 ];
 
 const Index = () => {
@@ -129,7 +129,7 @@ const Index = () => {
               </div>
               <div className="md:w-1/2 mt-8 md:mt-0">
                 <img 
-                  src="/placeholder.svg" 
+                  src="/hero-appliances.jpg" 
                   alt="Home Appliances" 
                   className="max-w-full h-auto rounded-lg shadow-lg"
                 />
@@ -150,11 +150,11 @@ const Index = () => {
                   to={`/category/${category.slug}`}
                   className="bg-belek-gray rounded-lg p-4 text-center transition-transform hover:-translate-y-1 hover:shadow-md"
                 >
-                  <div className="aspect-square bg-white rounded-lg flex items-center justify-center mb-3">
+                  <div className="aspect-square bg-white rounded-lg flex items-center justify-center mb-3 overflow-hidden">
                     <img
                       src={category.image}
                       alt={category.name}
-                      className="max-h-[80%] max-w-[80%] object-contain"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                   <h3 className="font-medium">{category.name}</h3>
@@ -197,7 +197,7 @@ const Index = () => {
                 </div>
                 <div className="md:w-1/2">
                   <img 
-                    src="/placeholder.svg" 
+                    src="/promo-kitchen.jpg" 
                     alt="Kitchen Appliances Promo" 
                     className="w-full h-full object-cover"
                   />
