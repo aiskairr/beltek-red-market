@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Phone, Mail, MapPin } from 'lucide-react';
 
-const Footer = () => (
+export const Footer = () => (
   <footer className="bg-belek-black text-white py-10">
     <div className="container mx-auto px-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -61,4 +61,5 @@ const Footer = () => (
   </footer>
 );
 
+// Export as default as well for backward compatibility
 export default Footer;
