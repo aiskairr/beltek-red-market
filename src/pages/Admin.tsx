@@ -11,9 +11,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { Search, Plus, Edit, Trash, Package, Users, ShoppingCart, Tag } from "lucide-react";
+import { toast } from "sonner";
 
 // Примерные данные для админ-панели
-const productsData = [
+const initialProductsData = [
   { id: 1, name: "Холодильник LG GA-B459CLWL", category: "refrigerators", price: 42999, stock: 12, featured: true },
   { id: 2, name: "Стиральная машина Samsung WW60H2230EW", category: "washing-machines", price: 28999, stock: 8, featured: false },
   { id: 3, name: "Телевизор LG 43LM5772PLA", category: "tvs", price: 24999, stock: 15, featured: true },
@@ -43,6 +44,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState("products");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [productsData, setProductsData] = useState(initialProductsData);
   const { toast } = useToast();
   
   const form = useForm({
@@ -68,17 +70,38 @@ const Admin = () => {
   };
 
   const onSubmit = (data: any) => {
-    // Здесь будет логика добавления продукта
-    console.log(data);
+    // Convert string values to numbers
+    const numericPrice = Number(data.price);
+    const numericStock = Number(data.stock);
+    
+    // Create a new product with an ID
+    const newProduct = {
+      id: productsData.length > 0 ? Math.max(...productsData.map(p => p.id)) + 1 : 1,
+      name: data.name,
+      category: data.category,
+      price: numericPrice,
+      stock: numericStock,
+      featured: data.featured
+    };
+    
+    // Add the new product to the productsData state
+    setProductsData([...productsData, newProduct]);
+    
+    // Show success toast
     toast({
       title: "Товар добавлен",
       description: `${data.name} успешно добавлен в каталог`,
     });
+    
+    // Reset the form and close the add form
     setIsAdding(false);
     form.reset();
   };
 
   const deleteItem = (id: number, type: string) => {
+    if (type === "товар") {
+      setProductsData(productsData.filter(product => product.id !== id));
+    }
     toast({
       title: "Элемент удален",
       description: `${type} с ID ${id} был удален`,
