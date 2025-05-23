@@ -6,9 +6,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
 import { Category } from '../../hooks/useCategories';
+import { Brand } from "@/hooks/useBrands";
 
 interface ProductFormProps {
     categories: Category[];
+    brands: Brand[]
     onSubmit: (data: any) => Promise<void>;
     onCancel: () => void;
 }
@@ -19,14 +21,16 @@ interface ProductFormData {
     category: string;
     description: string;
     image: File | null;
+    brand: string;
 }
 
-export const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onCancel }) => {
+export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, onSubmit, onCancel }) => {
     const { toast } = useToast();
     const form = useForm<ProductFormData>({
         defaultValues: {
             name: "",
             price: "",
+            brand: "",
             category: "",
             description: "",
             image: null
@@ -64,6 +68,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, 
             await onSubmit({
                 name: data.name,
                 category: data.category,
+                brand: data.brand,
                 description: data.description,
                 price: numericPrice,
                 image: imageUrl,
@@ -138,6 +143,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, 
                                                 {categories.map((cat) => (
                                                     <option key={cat.id} value={cat.category}>
                                                         {cat.category}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="brand"
+                                rules={{ required: "Выберите бренд" }}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Бренд</FormLabel>
+                                        <FormControl>
+                                            <select
+                                                {...field}
+                                                className="w-full border px-3 py-2 rounded-md text-sm"
+                                            >
+                                                <option value="">Выберите Бренд</option>
+                                                {brands.map((el) => (
+                                                    <option key={el.id} value={el.name}>
+                                                        {el.name}
                                                     </option>
                                                 ))}
                                             </select>

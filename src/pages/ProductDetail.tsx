@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ShoppingCart, Heart, ArrowLeft, Check, Minus, Plus, Truck } from 'lucide-react';
 import { Header } from '@/components/Header';
@@ -15,57 +15,57 @@ import { supabase } from '@/lib/supabase';
 
 
 const ProductDetail = () => {
- const { productId } = useParams<{ productId: string }>();
-const [product, setProduct] = useState<Product | null>(null);
-const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-const [quantity, setQuantity] = useState(1);
-const { addItem, getCount } = useCart();
+  const { productId } = useParams<{ productId: string }>();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [quantity, setQuantity] = useState(1);
+  const { addItem, getCount } = useCart();
 
-useEffect(() => {
-  const fetchProductAndRelated = async () => {
-    // ✅ 1. Получаем товар по ID
-    const { data: productData, error: productError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", productId)
-      .single();
+  useEffect(() => {
+    const fetchProductAndRelated = async () => {
+      // ✅ 1. Получаем товар по ID
+      const { data: productData, error: productError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", productId)
+        .single();
 
-    if (productError || !productData) {
-      console.error("Ошибка загрузки товара:", productError?.message);
-      setProduct(null);
-      return;
-    }
+      if (productError || !productData) {
+        console.error("Ошибка загрузки товара:", productError?.message);
+        setProduct(null);
+        return;
+      }
 
-    setProduct(productData);
+      setProduct(productData);
 
-    // ✅ 2. Получаем похожие товары по категории
-    const { data: relatedData, error: relatedError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("category", productData.category)
-      .neq("id", productData.id)
-      .limit(4);
+      // ✅ 2. Получаем похожие товары по категории
+      const { data: relatedData, error: relatedError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("category", productData.category)
+        .neq("id", productData.id)
+        .limit(4);
 
-    if (relatedError) {
-      console.error("Ошибка загрузки похожих товаров:", relatedError.message);
-    } else {
-      setRelatedProducts(relatedData || []);
+      if (relatedError) {
+        console.error("Ошибка загрузки похожих товаров:", relatedError.message);
+      } else {
+        setRelatedProducts(relatedData || []);
+      }
+    };
+
+    if (productId) fetchProductAndRelated();
+  }, [productId]);
+
+  const handleAddToCart = () => {
+    if (product) {
+      addItem(product, quantity);
     }
   };
 
-  if (productId) fetchProductAndRelated();
-}, [productId]);
-
-const handleAddToCart = () => {
-  if (product) {
-    addItem(product, quantity);
-  }
-};
-  
   // Get appropriate image based on category
   const getProductImage = (category?: string) => {
     if (!category) return '/appliance.jpg';
-    
+
     switch (category) {
       case 'refrigerators':
         return '/refrigerator.jpg';
@@ -74,9 +74,9 @@ const handleAddToCart = () => {
       case 'tvs':
         return '/tv.jpg';
       case 'kitchen':
-        return product?.name.toLowerCase().includes('микроволнов') 
-          ? '/microwave.jpg' 
-          : product?.name.toLowerCase().includes('кофемашин') 
+        return product?.name.toLowerCase().includes('микроволнов')
+          ? '/microwave.jpg'
+          : product?.name.toLowerCase().includes('кофемашин')
             ? '/coffee-machine.jpg'
             : '/kitchen-appliance.jpg';
       case 'air-conditioners':
@@ -87,11 +87,11 @@ const handleAddToCart = () => {
         return '/appliance.jpg';
     }
   };
-  
+
   if (!product) {
     return <div>Loading...</div>;
   }
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -112,35 +112,35 @@ const handleAddToCart = () => {
             <span className="mx-2">/</span>
             <span>{product.name}</span>
           </div>
-          
+
           {/* Back button */}
           <Link to={`/category/${product.category}`} className="inline-flex items-center text-sm font-medium mb-6 hover:text-belek-red">
             <ArrowLeft size={16} className="mr-1" />
             Назад к списку товаров
           </Link>
-          
+
           {/* Product Info */}
           <div className="bg-white rounded-lg shadow overflow-hidden mb-12">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
               {/* Product Image */}
               <div className="flex justify-center items-center bg-belek-gray rounded-lg p-8">
-                <img 
-                  src={product.image} 
+                <img
+                  src={product.image}
                   alt={product.name}
                   className="max-w-full max-h-[400px] object-contain"
                 />
               </div>
-              
+
               {/* Product Details */}
               <div className="flex flex-col">
                 <div className="mb-1">
-                  <Badge variant="outline" className="bg-belek-red/10 text-belek-red border-belek-red/30">
+                  <Badge className="bg-belek-red/10 text-belek-red border-belek-red/30">
                     Новинка
                   </Badge>
                 </div>
-                
+
                 <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
-                
+
                 <div className="text-gray-500 mb-4">
                   <span>Бренд: </span>
                   <span className="font-medium text-belek-black">{product.brand}</span>
@@ -148,14 +148,14 @@ const handleAddToCart = () => {
                   <span>Код товара: </span>
                   <span className="font-medium text-belek-black">BT{product.id}KG</span>
                 </div>
-                
+
                 {/* Price */}
                 <div className="flex items-baseline mb-6">
                   <div className="text-3xl font-bold">{product.price.toLocaleString()} с</div>
                   {/* Commented out for now - can add discount price logic here */}
                   {/* <div className="text-lg text-gray-500 line-through ml-3">{(product.price * 1.2).toLocaleString()} с</div> */}
                 </div>
-                
+
                 {/* Stock and Delivery */}
                 <div className="flex items-center text-sm mb-6">
                   <div className="flex items-center text-green-600 mr-4">
@@ -167,9 +167,9 @@ const handleAddToCart = () => {
                     <span>Доставка: 1-3 дня</span>
                   </div>
                 </div>
-                
+
                 <Separator className="mb-6" />
-                
+
                 {/* Add to Cart */}
                 <div className="flex items-center mb-8">
                   <div className="flex items-center border rounded overflow-hidden mr-4">
@@ -187,20 +187,20 @@ const handleAddToCart = () => {
                       <Plus size={16} />
                     </button>
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={handleAddToCart}
                     className="primary-button flex items-center"
                   >
                     <ShoppingCart size={18} className="mr-2" />
                     В корзину
                   </button>
-                  
+
                   <button className="ml-3 p-2.5 rounded-full border hover:bg-gray-100 transition-colors">
                     <Heart size={20} />
                   </button>
                 </div>
-                
+
                 {/* Payment Methods */}
                 <div className="bg-belek-gray rounded-lg p-4 mb-6">
                   <h3 className="font-semibold mb-3">Способы оплаты</h3>
@@ -231,7 +231,7 @@ const handleAddToCart = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Bank Logos */}
                 <div className="flex flex-wrap gap-2 items-center">
                   <span className="text-sm text-gray-500">Банки-партнеры:</span>
@@ -245,7 +245,7 @@ const handleAddToCart = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Tabs */}
           <Tabs defaultValue="description" className="mb-12">
             <TabsList className="grid grid-cols-3 lg:w-[400px]">
@@ -294,7 +294,7 @@ const handleAddToCart = () => {
               </div>
             </TabsContent>
           </Tabs>
-          
+
           {/* Related Products */}
           {relatedProducts.length > 0 && (
             <div className="mb-12">

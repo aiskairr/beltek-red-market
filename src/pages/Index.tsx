@@ -7,20 +7,10 @@ import { Product } from '@/hooks/use-cart';
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import mainpage from "../../public/mainpage2.png"
+import { useBrands } from '@/hooks/useBrands';
 
 
 
-// Brands data
-const brands = [
-  { name: 'LG', logo: '/logo-lg.png' },
-  { name: 'Samsung', logo: '/logo-samsung.png' },
-  { name: 'Ferre', logo: '/logo-ferre.png' },
-  { name: 'Blesk', logo: '/logo-blesk.png' },
-  { name: 'Midea', logo: '/logo-midea.png' },
-  { name: 'Бирюса', logo: '/logo-biryusa.png' },
-  { name: 'Vestel', logo: '/logo-vestel.png' },
-  { name: 'Avangard', logo: '/logo-avangard.png' },
-];
 
 // Categories data
 const categories = [
@@ -36,6 +26,7 @@ const Index = () => {
 
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { brands } = useBrands()
 
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
@@ -182,23 +173,6 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Discounted Products */}
-        {/* <section className="py-12 md:py-16">
-          <div className="container mx-auto px-4">
-            <h2 className="section-header">Скидки и акции</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {discountedProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-            <div className="mt-8 text-center">
-              <Link to="/promo" className="primary-button">
-                Все акции и скидки
-              </Link>
-            </div>
-          </div>
-        </section> */}
-
         {/* Brands */}
         <section className="py-12 md:py-16 bg-belek-gray">
           <div className="container mx-auto px-4">
@@ -207,9 +181,10 @@ const Index = () => {
               {brands.map((brand) => (
                 <div
                   key={brand.name}
-                  className="bg-white rounded-lg p-4 flex items-center justify-center h-24 shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-white rounded-lg p-4 flex flex-col items-center justify-center h-24 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <img src={brand.logo} alt={brand.name} className="max-h-12" />
+                  <img src={brand.image} alt={brand.name} />
+                  <p className="text-sm text-center">{brand.name}</p>
                 </div>
               ))}
             </div>
