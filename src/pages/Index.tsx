@@ -8,9 +8,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import mainpage from "../../public/mainpage2.png"
 import { useBrands } from '@/hooks/useBrands';
-
-
-
+import saleimage from "../../public/saleimage.png"
 
 // Categories data
 const categories = [
@@ -163,7 +161,7 @@ const Index = () => {
                 </div>
                 <div className="md:w-1/2">
                   <img
-                    src="/promo-kitchen.jpg"
+                    src={saleimage}
                     alt="Kitchen Appliances Promo"
                     className="w-full h-full object-cover"
                   />
