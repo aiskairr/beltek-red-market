@@ -1,5 +1,3 @@
-
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -129,8 +127,8 @@ const Index = () => {
                 >
                   <div className="aspect-square bg-white rounded-lg flex items-center justify-center mb-3 overflow-hidden">
                     <img
-                      src={""}
-                      alt={""}
+                      src={category.image}
+                      alt={"Картинка"}
                       className="w-full h-full object-cover"
                     />
                   </div>
