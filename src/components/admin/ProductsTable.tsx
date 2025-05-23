@@ -22,7 +22,6 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, onDelete
                             <TableHead>Категория</TableHead>
                             <TableHead>Цена</TableHead>
                             <TableHead>На складе</TableHead>
-                            <TableHead>Популярный</TableHead>
                             <TableHead className="text-right">Действия</TableHead>
                         </TableRow>
                     </TableHeader>
