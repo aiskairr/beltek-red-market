@@ -7,6 +7,7 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { ProductsTab } from '@/components/admin/ProductsTab';
 import { CategoriesTab } from '@/components/admin/CategoriesTab';
 import { useAuth } from '@/hooks/useAuth';
+import { BrandsTab } from '@/components/admin/BrandsTab';
 
 const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState("products");
@@ -33,10 +34,10 @@ const Admin: React.FC = () => {
             <TabsTrigger value="products" className="flex items-center">
               <Package className="h-4 w-4 mr-2" /> Товары
             </TabsTrigger>
-            {/* <TabsTrigger value="orders" className="flex items-center">
-              <ShoppingCart className="h-4 w-4 mr-2" /> Заказы
+            <TabsTrigger value="brands" className="flex items-center">
+              <ShoppingCart className="h-4 w-4 mr-2" /> Бренды
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center">
+            {/* <TabsTrigger value="users" className="flex items-center">
               <Users className="h-4 w-4 mr-2" /> Пользователи
             </TabsTrigger> */}
             <TabsTrigger value="categories" className="flex items-center">
@@ -47,12 +48,10 @@ const Admin: React.FC = () => {
           <TabsContent value="products">
             <ProductsTab />
           </TabsContent>
-{/* 
-          <TabsContent value="orders">
-            <div className="text-center py-8">
-              <p className="text-gray-500">Функционал заказов будет добавлен позже</p>
-            </div>
-          </TabsContent> */}
+
+          <TabsContent value="brands">
+            <BrandsTab />
+          </TabsContent>
 
           {/* <TabsContent value="users">
             <div className="text-center py-8">

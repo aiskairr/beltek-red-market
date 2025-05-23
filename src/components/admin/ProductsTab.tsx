@@ -7,6 +7,7 @@ import { ProductForm } from './ProductForm';
 import { ProductsTable } from './ProductsTable';
 import { useProducts } from '@/hooks/useProduct';
 import { useCategories } from '../../hooks/useCategories';
+import { useBrands } from '@/hooks/useBrands';
 
 export const ProductsTab: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -14,6 +15,7 @@ export const ProductsTab: React.FC = () => {
 
     const { products, addProduct, deleteProduct } = useProducts();
     const { categories } = useCategories();
+    const { brands } = useBrands();
 
     const filteredProducts = products.filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -46,6 +48,7 @@ export const ProductsTab: React.FC = () => {
 
             {isAdding && (
                 <ProductForm
+                    brands={brands}
                     categories={categories}
                     onSubmit={handleAddProduct}
                     onCancel={() => setIsAdding(false)}
