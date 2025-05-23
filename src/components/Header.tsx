@@ -69,10 +69,7 @@ export const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-4">
-            <Link to="/account" className="hidden md:flex flex-col items-center text-center text-sm">
-              <User className="h-6 w-6 mb-1" />
-              <span>Аккаунт</span>
-            </Link>
+            
             <Link to="/cart" className="flex flex-col items-center text-center text-sm relative">
               <ShoppingCart className="h-6 w-6 mb-1" />
               <span>Корзина</span>

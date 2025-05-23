@@ -17,35 +17,35 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   };
 
   // Get appropriate image based on category
-  const getProductImage = () => {
-    switch (product.category) {
-      case 'refrigerators':
-        return '/refrigerator.jpg';
-      case 'washing-machines':
-        return '/washing-machine.jpg';
-      case 'tvs':
-        return '/tv.jpg';
-      case 'kitchen':
-        return product.name.toLowerCase().includes('микроволнов') 
-          ? '/microwave.jpg' 
-          : product.name.toLowerCase().includes('кофемашин') 
-            ? '/coffee-machine.jpg'
-            : '/kitchen-appliance.jpg';
-      case 'air-conditioners':
-        return '/air-conditioner.jpg';
-      case 'vacuum-cleaners':
-        return '/vacuum-cleaner.jpg';
-      default:
-        return '/appliance.jpg';
-    }
-  };
+  // const getProductImage = () => {
+  //   switch (product.category) {
+  //     case 'refrigerators':
+  //       return '/refrigerator.jpg';
+  //     case 'washing-machines':
+  //       return '/washing-machine.jpg';
+  //     case 'tvs':
+  //       return '/tv.jpg';
+  //     case 'kitchen':
+  //       return product.name.toLowerCase().includes('микроволнов') 
+  //         ? '/microwave.jpg' 
+  //         : product.name.toLowerCase().includes('кофемашин') 
+  //           ? '/coffee-machine.jpg'
+  //           : '/kitchen-appliance.jpg';
+  //     case 'air-conditioners':
+  //       return '/air-conditioner.jpg';
+  //     case 'vacuum-cleaners':
+  //       return '/vacuum-cleaner.jpg';
+  //     default:
+  //       return '/appliance.jpg';
+  //   }
+  // };
 
   return (
     <div className="product-card group">
       <Link to={`/product/${product.id}`} className="block">
         <div className="relative pt-[100%] overflow-hidden">
           <img 
-            src={getProductImage()} 
+            src={product?.image} 
             alt={product.name} 
             className="absolute top-0 left-0 w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
           />
@@ -57,10 +57,10 @@ export const ProductCard = ({ product }: ProductCardProps) => {
         </div>
         
         <div className="p-4">
-          <div className="text-xs text-gray-500 mb-1">{product.brand}</div>
-          <h3 className="font-medium text-belek-black line-clamp-2 h-12">{product.name}</h3>
+          <div className="text-xs text-gray-500 mb-1">{product?.brand}</div>
+          <h3 className="font-medium text-belek-black line-clamp-2 h-12">{product?.name}</h3>
           <div className="mt-2 flex items-center justify-between">
-            <div className="font-bold text-lg">{product.price.toLocaleString()} с</div>
+            <div className="font-bold text-lg">{product?.price.toLocaleString()} с</div>
           </div>
         </div>
         

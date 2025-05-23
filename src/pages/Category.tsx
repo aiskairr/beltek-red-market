@@ -8,9 +8,10 @@ import { Product } from '@/hooks/use-cart';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { supabase } from '@/lib/supabase';
 
 // Mock data for products
-const allProducts: Product[] = [
+const allProducts: any[] = [
   {
     id: '1',
     name: 'Холодильник LG GC-B247SVUV',
@@ -200,6 +201,34 @@ const Category = () => {
   
   const availableBrands = Array.from(new Set(products.map(product => product.brand)));
   
+const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  const fetchProducts = async () => {
+    let query = supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (categorySlug && categorySlug !== "all") {
+      query = query.eq("category", categorySlug);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Ошибка загрузки товаров:", error.message);
+    } else {
+      setProducts(data || []);
+    }
+
+    setLoading(false);
+  };
+
+  fetchProducts();
+}, [categorySlug]);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -336,11 +365,14 @@ const Category = () => {
             )}
             
             {/* Product Grid */}
-            {filteredProducts.length > 0 ? (
+            {products.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map(product => (
+               
+                {
+                  products.map(product => (
                   <ProductCard key={product.id} product={product} />
-                ))}
+                ))
+                }
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">

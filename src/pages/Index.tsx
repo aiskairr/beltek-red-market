@@ -6,78 +6,11 @@ import { Footer } from '@/components/Footer';
 import { ProductCard } from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/hooks/use-cart';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import mainpage from "../../public/mainpage2.png"
 
-// Mock data for featured products
-const featuredProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Холодильник LG GC-B247SVUV',
-    brand: 'LG',
-    price: 79990,
-    image: '/placeholder.svg',
-    category: 'refrigerators',
-  },
-  {
-    id: '2',
-    name: 'Стиральная машина Samsung WW90T986CSX',
-    brand: 'Samsung',
-    price: 54990,
-    image: '/placeholder.svg',
-    category: 'washing-machines',
-  },
-  {
-    id: '3',
-    name: 'Телевизор LG OLED65C1',
-    brand: 'LG',
-    price: 129990,
-    image: '/placeholder.svg',
-    category: 'tvs',
-  },
-  {
-    id: '4',
-    name: 'Микроволновая печь Midea MM720CPI',
-    brand: 'Midea',
-    price: 12990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-];
 
-// Mock data for discounted products
-const discountedProducts: Product[] = [
-  {
-    id: '5',
-    name: 'Пылесос Samsung VS20T7536T5',
-    brand: 'Samsung',
-    price: 24990,
-    image: '/placeholder.svg',
-    category: 'vacuum-cleaners',
-  },
-  {
-    id: '6',
-    name: 'Кондиционер Midea Blanc MA-12N8D0-I/MA-12N8D0-O',
-    brand: 'Midea',
-    price: 32990,
-    image: '/placeholder.svg',
-    category: 'air-conditioners',
-  },
-  {
-    id: '7',
-    name: 'Посудомоечная машина Indesit DSFE 1B10',
-    brand: 'Indesit',
-    price: 29990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-  {
-    id: '8',
-    name: 'Кофемашина Ferre FCM2601',
-    brand: 'Ferre',
-    price: 18990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-];
 
 // Brands data
 const brands = [
@@ -102,10 +35,54 @@ const categories = [
 ];
 
 const Index = () => {
+
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(8); // можно изменить лимит
+
+      if (error) {
+        console.error("Ошибка загрузки товаров:", error.message);
+      } else {
+        setFeaturedProducts(data || []);
+      }
+
+      setLoading(false);
+    };
+
+    fetchFeaturedProducts();
+  }, []);
+
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .order("category", { ascending: true });
+
+      if (error) {
+        console.error("Ошибка загрузки категорий:", error.message);
+      } else {
+        setCategories(data || []);
+        console.log(data)
+      }
+    };
+
+    fetchCategories();
+  }, [])
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-1">
         {/* Hero Banner */}
         <section className="relative bg-belek-black text-white">
@@ -128,9 +105,9 @@ const Index = () => {
                 </div>
               </div>
               <div className="md:w-1/2 mt-8 md:mt-0">
-                <img 
-                  src="/hero-appliances.jpg" 
-                  alt="Home Appliances" 
+                <img
+                  src={mainpage}
+                  alt="Home Appliances"
                   className="max-w-full h-auto rounded-lg shadow-lg"
                 />
               </div>
@@ -145,19 +122,19 @@ const Index = () => {
             <h2 className="section-header">Популярные категории</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {categories.map((category) => (
-                <Link 
-                  key={category.slug}
-                  to={`/category/${category.slug}`}
+                <Link
+                  key={category.category}
+                  to={`/category/${category.category}`}
                   className="bg-belek-gray rounded-lg p-4 text-center transition-transform hover:-translate-y-1 hover:shadow-md"
                 >
                   <div className="aspect-square bg-white rounded-lg flex items-center justify-center mb-3 overflow-hidden">
                     <img
-                      src={category.image}
-                      alt={category.name}
+                      src={""}
+                      alt={""}
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <h3 className="font-medium">{category.name}</h3>
+                  <h3 className="font-medium">{category.category}</h3>
                 </Link>
               ))}
             </div>
@@ -196,9 +173,9 @@ const Index = () => {
                   </Link>
                 </div>
                 <div className="md:w-1/2">
-                  <img 
-                    src="/promo-kitchen.jpg" 
-                    alt="Kitchen Appliances Promo" 
+                  <img
+                    src="/promo-kitchen.jpg"
+                    alt="Kitchen Appliances Promo"
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -208,7 +185,7 @@ const Index = () => {
         </section>
 
         {/* Discounted Products */}
-        <section className="py-12 md:py-16">
+        {/* <section className="py-12 md:py-16">
           <div className="container mx-auto px-4">
             <h2 className="section-header">Скидки и акции</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -222,7 +199,7 @@ const Index = () => {
               </Link>
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* Brands */}
         <section className="py-12 md:py-16 bg-belek-gray">
@@ -230,8 +207,8 @@ const Index = () => {
             <h2 className="section-header">Наши бренды</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4 mt-8">
               {brands.map((brand) => (
-                <div 
-                  key={brand.name} 
+                <div
+                  key={brand.name}
                   className="bg-white rounded-lg p-4 flex items-center justify-center h-24 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <img src={brand.logo} alt={brand.name} className="max-h-12" />

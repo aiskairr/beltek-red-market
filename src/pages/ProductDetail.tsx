@@ -9,101 +9,58 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useCart, Product } from '@/hooks/use-cart';
 import { ProductCard } from '@/components/ProductCard';
+import { supabase } from '@/lib/supabase';
 
 // Mock all products
-const allProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Холодильник LG GC-B247SVUV',
-    brand: 'LG',
-    price: 79990,
-    image: '/placeholder.svg',
-    category: 'refrigerators',
-  },
-  {
-    id: '2',
-    name: 'Стиральная машина Samsung WW90T986CSX',
-    brand: 'Samsung',
-    price: 54990,
-    image: '/placeholder.svg',
-    category: 'washing-machines',
-  },
-  {
-    id: '3',
-    name: 'Телевизор LG OLED65C1',
-    brand: 'LG',
-    price: 129990,
-    image: '/placeholder.svg',
-    category: 'tvs',
-  },
-  {
-    id: '4',
-    name: 'Микроволновая печь Midea MM720CPI',
-    brand: 'Midea',
-    price: 12990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-  {
-    id: '5',
-    name: 'Пылесос Samsung VS20T7536T5',
-    brand: 'Samsung',
-    price: 24990,
-    image: '/placeholder.svg',
-    category: 'vacuum-cleaners',
-  },
-  {
-    id: '6',
-    name: 'Кондиционер Midea Blanc MA-12N8D0-I/MA-12N8D0-O',
-    brand: 'Midea',
-    price: 32990,
-    image: '/placeholder.svg',
-    category: 'air-conditioners',
-  },
-  {
-    id: '7',
-    name: 'Посудомоечная машина Indesit DSFE 1B10',
-    brand: 'Indesit',
-    price: 29990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-  {
-    id: '8',
-    name: 'Кофемашина Ferre FCM2601',
-    brand: 'Ferre',
-    price: 18990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-];
+
 
 const ProductDetail = () => {
-  const { productId } = useParams<{ productId: string }>();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-  const { addItem, getCount } = useCart();
-  
-  // Find the product and related products
-  useEffect(() => {
-    const foundProduct = allProducts.find(p => p.id === productId) || null;
-    setProduct(foundProduct);
-    
-    if (foundProduct) {
-      // Find other products in the same category
-      const related = allProducts
-        .filter(p => p.category === foundProduct.category && p.id !== foundProduct.id)
-        .slice(0, 4);
-      setRelatedProducts(related);
+ const { productId } = useParams<{ productId: string }>();
+const [product, setProduct] = useState<Product | null>(null);
+const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+const [quantity, setQuantity] = useState(1);
+const { addItem, getCount } = useCart();
+
+useEffect(() => {
+  const fetchProductAndRelated = async () => {
+    // ✅ 1. Получаем товар по ID
+    const { data: productData, error: productError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", productId)
+      .single();
+
+    if (productError || !productData) {
+      console.error("Ошибка загрузки товара:", productError?.message);
+      setProduct(null);
+      return;
     }
-  }, [productId]);
-  
-  const handleAddToCart = () => {
-    if (product) {
-      addItem(product, quantity);
+
+    setProduct(productData);
+
+    // ✅ 2. Получаем похожие товары по категории
+    const { data: relatedData, error: relatedError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("category", productData.category)
+      .neq("id", productData.id)
+      .limit(4);
+
+    if (relatedError) {
+      console.error("Ошибка загрузки похожих товаров:", relatedError.message);
+    } else {
+      setRelatedProducts(relatedData || []);
     }
   };
+
+  if (productId) fetchProductAndRelated();
+}, [productId]);
+
+const handleAddToCart = () => {
+  if (product) {
+    addItem(product, quantity);
+  }
+};
   
   // Get appropriate image based on category
   const getProductImage = (category?: string) => {
@@ -168,7 +125,7 @@ const ProductDetail = () => {
               {/* Product Image */}
               <div className="flex justify-center items-center bg-belek-gray rounded-lg p-8">
                 <img 
-                  src={getProductImage(product.category)} 
+                  src={product.image} 
                   alt={product.name}
                   className="max-w-full max-h-[400px] object-contain"
                 />
@@ -299,14 +256,7 @@ const ProductDetail = () => {
             <TabsContent value="description" className="p-6 bg-white rounded-lg shadow mt-2">
               <h2 className="text-lg font-semibold mb-4">Описание {product.name}</h2>
               <p className="mb-4">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod, nisl eget ultricies ultricies, 
-                nisl nisl aliquet nisl, eget aliquet nisl nisl eget nisl. Nullam euismod, nisl eget ultricies ultricies,
-                nisl nisl aliquet nisl, eget aliquet nisl nisl eget nisl.
-              </p>
-              <p>
-                Praesent finibus diam sit amet urna aliquam, non dictum arcu facilisis. 
-                In faucibus fermentum leo, a placerat diam molestie id. Donec eu ultrices massa. 
-                Suspendisse potenti. Proin augue dui, blandit in erat in, placerat finibus sapien.
+                {product.description}
               </p>
             </TabsContent>
             <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">

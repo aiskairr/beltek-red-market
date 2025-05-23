@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout } from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,56 +12,141 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { Search, Plus, Edit, Trash, Package, Users, ShoppingCart, Tag } from "lucide-react";
 import { toast } from "sonner";
-
-// Примерные данные для админ-панели
-const initialProductsData = [
-  { id: 1, name: "Холодильник LG GA-B459CLWL", category: "refrigerators", price: 42999, stock: 12, featured: true },
-  { id: 2, name: "Стиральная машина Samsung WW60H2230EW", category: "washing-machines", price: 28999, stock: 8, featured: false },
-  { id: 3, name: "Телевизор LG 43LM5772PLA", category: "tvs", price: 24999, stock: 15, featured: true },
-  { id: 4, name: "Микроволновая печь Midea MM720CKE", category: "kitchen", price: 5999, stock: 20, featured: false },
-];
-
-const ordersData = [
-  { id: 1001, customer: "Азамат Касымов", date: "2023-05-20", status: "Доставлен", total: 42999 },
-  { id: 1002, customer: "Елена Иванова", date: "2023-05-21", status: "В обработке", total: 28999 },
-  { id: 1003, customer: "Мирлан Джумабаев", date: "2023-05-22", status: "Отправлен", total: 24999 },
-];
-
-const usersData = [
-  { id: 1, name: "Азамат Касымов", email: "azamat@example.com", orders: 3, registeredDate: "2023-01-10" },
-  { id: 2, name: "Елена Иванова", email: "elena@example.com", orders: 2, registeredDate: "2023-02-15" },
-  { id: 3, name: "Мирлан Джумабаев", email: "mirlan@example.com", orders: 5, registeredDate: "2023-03-20" },
-];
-
-const categoriesData = [
-  { id: 1, name: "Холодильники", slug: "refrigerators", productsCount: 25 },
-  { id: 2, name: "Стиральные машины", slug: "washing-machines", productsCount: 18 },
-  { id: 3, name: "Телевизоры", slug: "tvs", productsCount: 30 },
-  { id: 4, name: "Кухонная техника", slug: "kitchen", productsCount: 40 },
-];
+import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("products");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdding, setIsAdding] = useState(false);
-  const [productsData, setProductsData] = useState(initialProductsData);
+  const [productsData, setProductsData] = useState<any[]>([]);
   const { toast } = useToast();
-  
+
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+
+  //catedoyty supabase
+  const [categories, setCategories] = useState<any[]>([]);
+  const [newCategory, setNewCategory] = useState({ category: "" });
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase.from("categories").select("*").order("category", { ascending: true });
+      if (!error) setCategories(data || []);
+    };
+
+    fetchCategories();
+  }, []);
+
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      if (error) {
+        toast({ title: "Ошибка загрузки", description: error.message });
+      } else {
+        setProductsData(data || []);
+      }
+    };
+    fetchProducts();
+  }, []);
+
   const form = useForm({
     defaultValues: {
       name: "",
       price: "",
       category: "",
-      stock: "",
-      featured: false
+      description: "",
+      image: null as File | null
     }
   });
+
+const deleteItem = async (id: string | number, type: "товар" | "категория") => {
+  if (type === "товар") {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить товар.",
+        variant: "destructive",
+      });
+    } else {
+      setProductsData((prev) => prev.filter((p) => p.id !== id));
+      toast({
+        title: "Товар удалён",
+        description: `Товар с ID ${id} был удалён.`,
+      });
+    }
+  }
+
+  if (type === "категория") {
+    // Получаем имя категории по ID
+    const { data: categoryData, error: categoryError } = await supabase
+      .from("categories")
+      .select("category")
+      .eq("id", id)
+      .single();
+
+    if (categoryError || !categoryData) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось найти категорию для удаления.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const categoryName = categoryData.category;
+
+    // Удаляем связанные товары
+    const { error: productsError } = await supabase
+      .from("products")
+      .delete()
+      .eq("category", categoryName);
+
+    if (productsError) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить связанные товары.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Удаляем саму категорию
+    const { error: categoryDeleteError } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", id);
+
+    if (categoryDeleteError) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить категорию.",
+        variant: "destructive",
+      });
+    } else {
+      setCategories((prev) => prev.filter((cat) => cat.id !== id));
+      toast({
+        title: "Категория удалена",
+        description: `Категория и все её товары удалены.`,
+      });
+    }
+  }
+};
+
+
+
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
-  
-  const filteredProducts = productsData.filter(product => 
+
+  const filteredProducts = productsData.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -69,39 +154,68 @@ const Admin = () => {
     setIsAdding(!isAdding);
   };
 
-  const onSubmit = (data: any) => {
-    // Convert string values to numbers
+  const onSubmit = async (data: any) => {
     const numericPrice = Number(data.price);
-    const numericStock = Number(data.stock);
-    
-    // Create a new product with an ID
-    const newProduct = {
-      id: productsData.length > 0 ? Math.max(...productsData.map(p => p.id)) + 1 : 1,
+    const { data: userData } = await supabase.auth.getUser();
+    console.log("Текущий пользователь:", userData?.user);
+
+    let imageUrl = "";
+
+    if (data.image) {
+      const file = data.image as File;
+      const filePath = `products/${Date.now()}_${file.name}`;
+
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from("products")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({ title: "Ошибка загрузки", description: uploadError.message });
+        return;
+      }
+
+      imageUrl = supabase.storage
+        .from("products")
+        .getPublicUrl(filePath).data.publicUrl;
+    }
+
+    const { data: newProduct, error } = await supabase.from("products").insert({
       name: data.name,
       category: data.category,
+      description: data.description,
       price: numericPrice,
-      stock: numericStock,
-      featured: data.featured
-    };
-    
-    // Add the new product to the productsData state
-    setProductsData([...productsData, newProduct]);
-    
-    // Show success toast
+      image: imageUrl,
+    }).select().single();
+
+    if (error) {
+      toast({ title: "Ошибка добавления", description: error.message });
+      return;
+    }
+
+    setProductsData([newProduct, ...productsData]);
+
     toast({
       title: "Товар добавлен",
-      description: `${data.name} успешно добавлен в каталог`,
+      description: `${data.name} успешно добавлен`,
     });
-    
-    // Reset the form and close the add form
+
     setIsAdding(false);
     form.reset();
   };
 
-  const deleteItem = (id: number, type: string) => {
+
+  const deleteItem2 = async (id: number, type: string) => {
     if (type === "товар") {
-      setProductsData(productsData.filter(product => product.id !== id));
+      const { error } = await supabase.from("products").delete().eq("id", id);
+      if (!error) {
+        setProductsData(productsData.filter(product => product.id !== id));
+      } else {
+        toast({ title: "Ошибка удаления", description: error.message });
+        return;
+      }
     }
+
     toast({
       title: "Элемент удален",
       description: `${type} с ID ${id} был удален`,
@@ -141,11 +255,12 @@ const Admin = () => {
                       <FormItem>
                         <FormLabel>Название товара</FormLabel>
                         <FormControl>
-                          <Input placeholder="Название товара" {...field} />
+                          <Input placeholder="Введите название" {...field} />
                         </FormControl>
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="price"
@@ -158,6 +273,7 @@ const Admin = () => {
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="category"
@@ -165,12 +281,59 @@ const Admin = () => {
                       <FormItem>
                         <FormLabel>Категория</FormLabel>
                         <FormControl>
-                          <Input placeholder="Категория" {...field} />
+                          <select
+                            {...field}
+                            className="w-full border px-3 py-2 rounded-md text-sm"
+                          >
+                            <option value="">Выберите категорию</option>
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={cat.category}>
+                                {cat.category}
+                              </option>
+                            ))}
+                          </select>
                         </FormControl>
                       </FormItem>
                     )}
                   />
+
+
                   <FormField
+                    control={form.control}
+                    name="image"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Изображение</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => field.onChange(e.target.files?.[0] || null)}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Описание</FormLabel>
+                        <FormControl>
+                          <textarea
+                            {...field}
+                            className="w-full border rounded px-3 py-2"
+                            rows={4}
+                            placeholder="Описание товара"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* <FormField
                     control={form.control}
                     name="stock"
                     render={({ field }) => (
@@ -181,22 +344,22 @@ const Admin = () => {
                         </FormControl>
                       </FormItem>
                     )}
-                  />
-                  <FormField
+                  /> */}
+                  {/* <FormField
                     control={form.control}
                     name="featured"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-2 space-y-0 mt-4">
                         <FormControl>
-                          <Checkbox 
-                            checked={field.value} 
+                          <Checkbox
+                            checked={field.value}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
                         <FormLabel>Популярный товар</FormLabel>
                       </FormItem>
                     )}
-                  />
+                  /> */}
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" type="button" onClick={toggleAddForm}>Отмена</Button>
@@ -236,9 +399,9 @@ const Admin = () => {
                       <Button size="sm" variant="outline">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
+                      <Button
+                        size="sm"
+                        variant="outline"
                         className="text-red-500"
                         onClick={() => deleteItem(product.id, "товар")}
                       >
@@ -255,99 +418,128 @@ const Admin = () => {
     </>
   );
 
-  const renderOrdersTab = () => (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Покупатель</TableHead>
-              <TableHead>Дата</TableHead>
-              <TableHead>Статус</TableHead>
-              <TableHead>Сумма</TableHead>
-              <TableHead className="text-right">Действия</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ordersData.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell>{order.id}</TableCell>
-                <TableCell>{order.customer}</TableCell>
-                <TableCell>{order.date}</TableCell>
-                <TableCell>{order.status}</TableCell>
-                <TableCell>{order.total.toLocaleString()} с</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="text-red-500"
-                      onClick={() => deleteItem(order.id, "заказ")}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
+  // const renderOrdersTab = () => (
+  //   <Card>
+  //     <CardContent className="p-0">
+  //       <Table>
+  //         <TableHeader>
+  //           <TableRow>
+  //             <TableHead>ID</TableHead>
+  //             <TableHead>Покупатель</TableHead>
+  //             <TableHead>Дата</TableHead>
+  //             <TableHead>Статус</TableHead>
+  //             <TableHead>Сумма</TableHead>
+  //             <TableHead className="text-right">Действия</TableHead>
+  //           </TableRow>
+  //         </TableHeader>
+  //         <TableBody>
+  //           {ordersData.map((order) => (
+  //             <TableRow key={order.id}>
+  //               <TableCell>{order.id}</TableCell>
+  //               <TableCell>{order.customer}</TableCell>
+  //               <TableCell>{order.date}</TableCell>
+  //               <TableCell>{order.status}</TableCell>
+  //               <TableCell>{order.total.toLocaleString()} с</TableCell>
+  //               <TableCell className="text-right">
+  //                 <div className="flex justify-end space-x-2">
+  //                   <Button size="sm" variant="outline">
+  //                     <Edit className="h-4 w-4" />
+  //                   </Button>
+  //                   <Button
+  //                     size="sm"
+  //                     variant="outline"
+  //                     className="text-red-500"
+  //                     onClick={() => deleteItem(order.id, "заказ")}
+  //                   >
+  //                     <Trash className="h-4 w-4" />
+  //                   </Button>
+  //                 </div>
+  //               </TableCell>
+  //             </TableRow>
+  //           ))}
+  //         </TableBody>
+  //       </Table>
+  //     </CardContent>
+  //   </Card>
+  // );
 
-  const renderUsersTab = () => (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Имя</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Заказы</TableHead>
-              <TableHead>Дата регистрации</TableHead>
-              <TableHead className="text-right">Действия</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usersData.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.id}</TableCell>
-                <TableCell>{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.orders}</TableCell>
-                <TableCell>{user.registeredDate}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="text-red-500"
-                      onClick={() => deleteItem(user.id, "пользователь")}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
+  // const renderUsersTab = () => (
+  //   <Card>
+  //     <CardContent className="p-0">
+  //       <Table>
+  //         <TableHeader>
+  //           <TableRow>
+  //             <TableHead>ID</TableHead>
+  //             <TableHead>Имя</TableHead>
+  //             <TableHead>Email</TableHead>
+  //             <TableHead>Заказы</TableHead>
+  //             <TableHead>Дата регистрации</TableHead>
+  //             <TableHead className="text-right">Действия</TableHead>
+  //           </TableRow>
+  //         </TableHeader>
+  //         <TableBody>
+  //           {usersData.map((user) => (
+  //             <TableRow key={user.id}>
+  //               <TableCell>{user.id}</TableCell>
+  //               <TableCell>{user.name}</TableCell>
+  //               <TableCell>{user.email}</TableCell>
+  //               <TableCell>{user.orders}</TableCell>
+  //               <TableCell>{user.registeredDate}</TableCell>
+  //               <TableCell className="text-right">
+  //                 <div className="flex justify-end space-x-2">
+  //                   <Button size="sm" variant="outline">
+  //                     <Edit className="h-4 w-4" />
+  //                   </Button>
+  //                   <Button
+  //                     size="sm"
+  //                     variant="outline"
+  //                     className="text-red-500"
+  //                     onClick={() => deleteItem(user.id, "пользователь")}
+  //                   >
+  //                     <Trash className="h-4 w-4" />
+  //                   </Button>
+  //                 </div>
+  //               </TableCell>
+  //             </TableRow>
+  //           ))}
+  //         </TableBody>
+  //       </Table>
+  //     </CardContent>
+  //   </Card>
+  // );
 
   const renderCategoriesTab = () => (
     <Card>
+      <Card className="mb-4 p-4">
+        <h3 className="text-lg font-semibold mb-2">Добавить категорию</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <Input
+            placeholder="Название категории"
+            value={newCategory.category}
+            onChange={(e) => setNewCategory({ ...newCategory, category: e.target.value })}
+          />
+          <Button
+            className="bg-belek-red hover:bg-red-700"
+            onClick={async () => {
+              if (!newCategory.category) return;
+
+              const { error } = await supabase.from("categories").insert([newCategory]);
+
+              if (!error) {
+                setNewCategory({ category: "" });
+                const { data } = await supabase.from("categories").select("*").order("category");
+                setCategories(data || []);
+              }
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Добавить категорию
+          </Button>
+        </div>
+      </Card>
+
       <CardContent className="p-0">
+
         <Table>
           <TableHeader>
             <TableRow>
@@ -359,25 +551,25 @@ const Admin = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categoriesData.map((category) => (
+            {categories.map((category) => (
               <TableRow key={category.id}>
                 <TableCell>{category.id}</TableCell>
-                <TableCell>{category.name}</TableCell>
-                <TableCell>{category.slug}</TableCell>
-                <TableCell>{category.productsCount}</TableCell>
+                <TableCell>{category.category}</TableCell>
+                {/* <TableCell>{category.slug}</TableCell>
+                <TableCell>{category.productsCount}</TableCell> */}
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
                     <Button size="sm" variant="outline">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="text-red-500"
-                      onClick={() => deleteItem(category.id, "категория")}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
+                    <Button
+  size="sm"
+  variant="outline"
+  className="text-red-500"
+  onClick={() => deleteItem(category.id, "категория")}
+>
+  <Trash className="h-4 w-4" />
+</Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -388,11 +580,36 @@ const Admin = () => {
     </Card>
   );
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/login");
+      } else {
+        setLoading(false);
+      }
+    });
+  }, []);
+
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
+  if (loading) return <div className="text-center mt-10">Загрузка...</div>;
+
   return (
     <Layout>
       <div className="container mx-auto py-8">
         <h1 className="text-3xl font-bold text-belek-black mb-8">Панель администратора</h1>
-        
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-all duration-200 shadow-md"
+        >
+          Выйти
+        </button>
+
+
         <Tabs defaultValue="products" onValueChange={(value) => setActiveTab(value)}>
           <TabsList className="grid grid-cols-4 mb-6">
             <TabsTrigger value="products" className="flex items-center">
@@ -408,19 +625,19 @@ const Admin = () => {
               <Tag className="h-4 w-4 mr-2" /> Категории
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="products">
             {renderProductsTab()}
           </TabsContent>
-          
-          <TabsContent value="orders">
+
+          {/* <TabsContent value="orders">
             {renderOrdersTab()}
           </TabsContent>
-          
+
           <TabsContent value="users">
             {renderUsersTab()}
-          </TabsContent>
-          
+          </TabsContent> */}
+
           <TabsContent value="categories">
             {renderCategoriesTab()}
           </TabsContent>
