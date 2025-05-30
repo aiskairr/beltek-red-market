@@ -252,11 +252,6 @@ const Category = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
           <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
-            <img 
-              src={categoryImages[categorySlug] || categoryImages['all']} 
-              alt={categoryNames[categorySlug]} 
-              className="w-full h-full object-cover"
-            />
             <div className="absolute inset-0 bg-opacity-90 flex items-center justify-center" style={{background: "rgb(227 6 19 / var(--tw-bg-opacity, 1))"}}>
               <h1 className="text-3xl font-bold text-white">{categoryNames[categorySlug] || 'Товары'}</h1>
             </div>
