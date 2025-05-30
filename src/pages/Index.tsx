@@ -131,7 +131,7 @@ const Index = () => {
         {/* Featured Products */}
         <section className="py-12 md:py-16 bg-belek-gray">
           <div className="container mx-auto px-4">
-            <h2 className="section-header">Популярные товары</h2>
+            <h2 className="section-header">Товары</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredProducts.map(product => (
                 <ProductCard key={product.id} product={product} />
