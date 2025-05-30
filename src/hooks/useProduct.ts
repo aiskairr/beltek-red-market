@@ -9,6 +9,7 @@ export interface Product {
   category: string;
   description: string;
   price: number;
+  brand: string;
   image?: string;
   stock?: number;
   featured?: boolean;
@@ -41,6 +42,76 @@ export const useProducts = () => {
       setLoading(false);
     }
   };
+  const uploadProductImage = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `categories/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('products')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('products')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+const onEdit = async (id?: number, formData?: Product) => {
+  try {
+    if (!id || !formData) return;
+
+    let imageUrl = "";
+    const image = formData.image as string | File;
+
+    if (image instanceof File) {
+      imageUrl = await uploadProductImage(image);
+    } else {
+      imageUrl = image;
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .update({
+        name: formData.name,
+        price: formData.price,
+        description: formData.description,
+        image: imageUrl,
+        brand: formData.brand,
+        category: formData.category,
+        id: formData.id,
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    setProducts(prev =>
+      prev
+        .map(prod => (prod.id === id ? data : prod))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    );
+
+    toast({
+      title: "Товар обновлён",
+      description: `Товар "${formData.name}" успешно обновлён`,
+    });
+
+    return data;
+  } catch (error: any) {
+    toast({
+      title: "Ошибка обновления товара",
+      description: error.message,
+      variant: "destructive",
+    });
+    throw error;
+  }
+};
 
   const addProduct = async (productData: Omit<Product, 'id' | 'created_at'>) => {
     try {
@@ -101,6 +172,7 @@ export const useProducts = () => {
     loading,
     addProduct,
     deleteProduct,
+    onEdit,
     refetch: fetchProducts
   };
 };

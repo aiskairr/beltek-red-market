@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
@@ -9,106 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { supabase } from '@/lib/supabase';
-
-// Mock data for products
-const allProducts: any[] = [
-  {
-    id: '1',
-    name: 'Холодильник LG GC-B247SVUV',
-    brand: 'LG',
-    price: 79990,
-    image: '/placeholder.svg',
-    category: 'refrigerators',
-  },
-  {
-    id: '2',
-    name: 'Стиральная машина Samsung WW90T986CSX',
-    brand: 'Samsung',
-    price: 54990,
-    image: '/placeholder.svg',
-    category: 'washing-machines',
-  },
-  {
-    id: '3',
-    name: 'Телевизор LG OLED65C1',
-    brand: 'LG',
-    price: 129990,
-    image: '/placeholder.svg',
-    category: 'tvs',
-  },
-  {
-    id: '4',
-    name: 'Микроволновая печь Midea MM720CPI',
-    brand: 'Midea',
-    price: 12990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-  {
-    id: '5',
-    name: 'Пылесос Samsung VS20T7536T5',
-    brand: 'Samsung',
-    price: 24990,
-    image: '/placeholder.svg',
-    category: 'vacuum-cleaners',
-  },
-  {
-    id: '6',
-    name: 'Кондиционер Midea Blanc MA-12N8D0-I/MA-12N8D0-O',
-    brand: 'Midea',
-    price: 32990,
-    image: '/placeholder.svg',
-    category: 'air-conditioners',
-  },
-  {
-    id: '7',
-    name: 'Посудомоечная машина Indesit DSFE 1B10',
-    brand: 'Indesit',
-    price: 29990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-  {
-    id: '8',
-    name: 'Кофемашина Ferre FCM2601',
-    brand: 'Ferre',
-    price: 18990,
-    image: '/placeholder.svg',
-    category: 'kitchen',
-  },
-  {
-    id: '9',
-    name: 'Холодильник Samsung RF50A5002S9',
-    brand: 'Samsung',
-    price: 89990,
-    image: '/placeholder.svg',
-    category: 'refrigerators',
-  },
-  {
-    id: '10',
-    name: 'Телевизор Samsung QN90A',
-    brand: 'Samsung',
-    price: 109990,
-    image: '/placeholder.svg',
-    category: 'tvs',
-  },
-  {
-    id: '11',
-    name: 'Стиральная машина Indesit IWSB 5085',
-    brand: 'Indesit',
-    price: 24990,
-    image: '/placeholder.svg',
-    category: 'washing-machines',
-  },
-  {
-    id: '12',
-    name: 'Пылесос Midea VCS141',
-    brand: 'Midea',
-    price: 7990,
-    image: '/placeholder.svg',
-    category: 'vacuum-cleaners',
-  },
-];
 
 const categoryNames: Record<string, string> = {
   'all': 'Все товары',
@@ -130,34 +29,130 @@ const categoryImages: Record<string, string> = {
   'vacuum-cleaners': '/category-vacuum-cleaners.jpg',
 };
 
-const brands = ['LG', 'Samsung', 'Ferre', 'Blesk', 'Midea', 'Бирюса', 'Vestel', 'Avangard', 'Indesit', 'Avest', 'Техномир'];
+const ITEMS_PER_PAGE = 9;
 
 const Category = () => {
   const { categorySlug = 'all' } = useParams<{ categorySlug: string }>();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 150000]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(150000);
   const [sortBy, setSortBy] = useState<string>('featured');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Find min and max prices across all products
-  const minPrice = Math.min(...allProducts.map(product => product.price));
-  const maxPrice = Math.max(...allProducts.map(product => product.price));
-  
-  // Load products based on category
+  // Fetch brands from Supabase
   useEffect(() => {
-    // Filter products based on category
-    const categoryProducts = 
-      categorySlug === 'all' 
-        ? allProducts 
-        : allProducts.filter(product => product.category === categorySlug);
+    const fetchBrands = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('brands')
+          .select('*')
+          .order('name');
+        
+        if (error) {
+          throw error;
+        }
+        
+        setBrands(data || []);
+      } catch (err) {
+        console.error('Ошибка загрузки брендов:', err);
+        setError('Ошибка загрузки брендов');
+      }
+    };
     
-    setProducts(categoryProducts);
-    setPriceRange([minPrice, maxPrice]);
+    fetchBrands();
+  }, []);
+  
+  // Fetch products from Supabase with pagination
+  const fetchProducts = async (pageNum: number, append: boolean = false) => {
+    try {
+      if (pageNum === 0) {
+        setLoading(true);
+        setError(null);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const from = pageNum * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      let query = supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (categorySlug && categorySlug !== "all") {
+        query = query.eq("category", categorySlug);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      const newProducts = data || [];
+      
+      if (append) {
+        setProducts(prev => [...prev, ...newProducts]);
+      } else {
+        setProducts(newProducts);
+        setAllProducts(newProducts);
+        
+        // Calculate min and max prices from first batch
+        if (newProducts.length > 0) {
+          const prices = newProducts.map(product => product.price);
+          const minPriceValue = Math.min(...prices);
+          const maxPriceValue = Math.max(...prices);
+          setMinPrice(minPriceValue);
+          setMaxPrice(maxPriceValue);
+          setPriceRange([minPriceValue, maxPriceValue]);
+        }
+      }
+      
+      // Check if there are more items to load
+      setHasMore(newProducts.length === ITEMS_PER_PAGE);
+      
+    } catch (err: any) {
+      console.error("Ошибка загрузки товаров:", err.message);
+      setError(`Ошибка загрузки товаров: ${err.message}`);
+      setProducts([]);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    setPage(0);
+    setProducts([]);
+    setAllProducts([]);
+    setHasMore(true);
+    fetchProducts(0, false);
   }, [categorySlug]);
   
-  // Apply filters and sorting
+  // Load more products
+  const loadMoreProducts = async () => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      await fetchProducts(nextPage, true);
+    }
+  };
+  
+  // Apply filters and sorting to currently loaded products
   useEffect(() => {
     let result = [...products];
     
@@ -199,35 +194,57 @@ const Category = () => {
     );
   };
   
-  const availableBrands = Array.from(new Set(products.map(product => product.brand)));
+  // Get available brands from current products
+  const availableBrandNames = Array.from(new Set(products.map(product => product.brand)));
+  const availableBrands = brands.filter(brand => availableBrandNames.includes(brand.name));
   
-const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-  const fetchProducts = async () => {
-    let query = supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (categorySlug && categorySlug !== "all") {
-      query = query.eq("category", categorySlug);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Ошибка загрузки товаров:", error.message);
-    } else {
-      setProducts(data || []);
-    }
-
-    setLoading(false);
+  const resetFilters = () => {
+    setSelectedBrands([]);
+    setPriceRange([minPrice, maxPrice]);
+    setSortBy('featured');
   };
 
-  fetchProducts();
-}, [categorySlug]);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-4 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <div className="text-lg">Загрузка товаров...</div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-4 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <div className="text-red-600 mb-2">⚠️ Произошла ошибка</div>
+            <div className="text-gray-700">{error}</div>
+            <button 
+              onClick={() => {
+                setError(null);
+                setPage(0);
+                fetchProducts(0, false);
+              }}
+              className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+            >
+              Попробовать снова
+            </button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -244,7 +261,10 @@ useEffect(() => {
               <h1 className="text-3xl font-bold text-white">{categoryNames[categorySlug] || 'Товары'}</h1>
             </div>
           </div>
-          <p className="text-gray-600">Найдено товаров: {filteredProducts.length}</p>
+          <p className="text-gray-600">
+            Показано товаров: {filteredProducts.length}
+            {products.length > 0 && ` из ${products.length} загруженных`}
+          </p>
         </div>
         
         <div className="flex flex-col lg:flex-row gap-6">
@@ -274,16 +294,16 @@ useEffect(() => {
               {/* Brand Filter */}
               <div className="p-4">
                 <h3 className="font-medium mb-4">Бренд</h3>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
                   {availableBrands.map(brand => (
-                    <div key={brand} className="flex items-center">
+                    <div key={brand.id} className="flex items-center">
                       <Checkbox
-                        id={`brand-${brand}`}
-                        checked={selectedBrands.includes(brand)}
-                        onCheckedChange={() => handleBrandToggle(brand)}
+                        id={`brand-${brand.id}`}
+                        checked={selectedBrands.includes(brand.name)}
+                        onCheckedChange={() => handleBrandToggle(brand.name)}
                       />
-                      <Label htmlFor={`brand-${brand}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        {brand}
+                      <Label htmlFor={`brand-${brand.id}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {brand.name}
                       </Label>
                     </div>
                   ))}
@@ -346,16 +366,16 @@ useEffect(() => {
                 </div>
                 <div>
                   <h4 className="text-sm font-medium mb-3">Бренд</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                     {availableBrands.map(brand => (
-                      <div key={brand} className="flex items-center">
+                      <div key={brand.id} className="flex items-center">
                         <Checkbox
-                          id={`mobile-brand-${brand}`}
-                          checked={selectedBrands.includes(brand)}
-                          onCheckedChange={() => handleBrandToggle(brand)}
+                          id={`mobile-brand-${brand.id}`}
+                          checked={selectedBrands.includes(brand.name)}
+                          onCheckedChange={() => handleBrandToggle(brand.name)}
                         />
-                        <Label htmlFor={`mobile-brand-${brand}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          {brand}
+                        <Label htmlFor={`mobile-brand-${brand.id}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 truncate">
+                          {brand.name}
                         </Label>
                       </div>
                     ))}
@@ -365,15 +385,40 @@ useEffect(() => {
             )}
             
             {/* Product Grid */}
-            {products.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-               
-                {
-                  products.map(product => (
-                  <ProductCard key={product.id} product={product} />
-                ))
-                }
-              </div>
+            {filteredProducts.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {filteredProducts.map(product => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+                
+                {/* Load More Button */}
+                {hasMore && (
+                  <div className="text-center">
+                    <button
+                      onClick={loadMoreProducts}
+                      disabled={loadingMore}
+                      className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Загрузка...
+                        </>
+                      ) : (
+                        'Показать ещё'
+                      )}
+                    </button>
+                  </div>
+                )}
+                
+                {!hasMore && products.length > ITEMS_PER_PAGE && (
+                  <div className="text-center text-gray-500 py-4">
+                    Все товары загружены
+                  </div>
+                )}
+              </>
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">
                 <div className="text-gray-400 mb-4">
@@ -384,11 +429,7 @@ useEffect(() => {
                 <h3 className="text-lg font-medium mb-2">Товары не найдены</h3>
                 <p className="text-gray-600 mb-4">Попробуйте изменить параметры фильтрации</p>
                 <button 
-                  onClick={() => {
-                    setSelectedBrands([]);
-                    setPriceRange([minPrice, maxPrice]);
-                    setSortBy('featured');
-                  }}
+                  onClick={resetFilters}
                   className="primary-button"
                 >
                   Сбросить фильтры

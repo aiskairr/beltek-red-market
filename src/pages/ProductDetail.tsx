@@ -196,9 +196,7 @@ const ProductDetail = () => {
                     В корзину
                   </button>
 
-                  <button className="ml-3 p-2.5 rounded-full border hover:bg-gray-100 transition-colors">
-                    <Heart size={20} />
-                  </button>
+                 
                 </div>
 
                 {/* Payment Methods */}

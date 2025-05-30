@@ -98,6 +98,57 @@ export const useCategories = () => {
       throw error;
     }
   };
+const onEdit = async (id?: number, formData?: Category) => {
+  try {
+    if (!id || !formData) return;
+
+    let imageUrl = "";
+const image = formData.image as string | File;
+if (image instanceof File) {
+  imageUrl = await uploadCategoryImage(image);
+} else {
+  imageUrl = image;
+}
+    if (image instanceof File) {
+  imageUrl = await uploadCategoryImage(image);
+} else {
+  imageUrl = image;
+}
+
+    const { data, error } = await supabase
+      .from("categories")
+      .update({
+        category: formData.category,
+        image: imageUrl,
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    setCategories(prev =>
+      prev
+        .map(cat => (cat.id === id ? data : cat))
+        .sort((a, b) => a.category.localeCompare(b.category))
+    );
+
+    toast({
+      title: "Категория обновлена",
+      description: `Категория "${formData.category}" успешно обновлена`,
+    });
+
+    return data;
+  } catch (error: any) {
+    toast({
+      title: "Ошибка обновления",
+      description: error.message,
+      variant: "destructive",
+    });
+    throw error;
+  }
+};
+
 
   const deleteCategory = async (id: number) => {
     try {
@@ -167,6 +218,7 @@ export const useCategories = () => {
     loading,
     addCategory,
     deleteCategory,
+    onEdit,
     refetch: fetchCategories
   };
 };
