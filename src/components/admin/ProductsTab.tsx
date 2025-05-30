@@ -13,7 +13,7 @@ export const ProductsTab: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [isAdding, setIsAdding] = useState(false);
 
-    const { products, addProduct, deleteProduct } = useProducts();
+    const { products, addProduct, deleteProduct, onEdit } = useProducts();
     const { categories } = useCategories();
     const { brands } = useBrands();
 
@@ -58,6 +58,9 @@ export const ProductsTab: React.FC = () => {
             <ProductsTable
                 products={filteredProducts}
                 onDelete={deleteProduct}
+                onEdit={onEdit}
+                 brands={brands}
+                    categories={categories}
             />
         </>
     );

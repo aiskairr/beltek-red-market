@@ -71,9 +71,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             <ShoppingCart size={18} className="mr-1" />
             <span>В корзину</span>
           </button>
-          <button className="text-white hover:text-belek-red transition-colors">
-            <Heart size={20} />
-          </button>
+          
         </div>
       </Link>
     </div>

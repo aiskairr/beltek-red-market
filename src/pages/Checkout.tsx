@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -44,8 +43,8 @@ const banks = [
 const Checkout = () => {
   const { items, getTotal, clearCart } = useCart();
   const navigate = useNavigate();
-  
-  const [formData, setFormData] = useState<FormData>({
+
+  const [formData, setFormData] = useState<any>({
     firstName: '',
     lastName: '',
     phone: '',
@@ -56,6 +55,7 @@ const Checkout = () => {
     deliveryMethod: DeliveryMethod.DELIVERY,
     paymentMethod: PaymentMethod.CASH,
     bank: null,
+    pickupBranch: '', 
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -63,7 +63,7 @@ const Checkout = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
+
     // Clear error when field is typed in
     if (errors[name as keyof FormData]) {
       setErrors(prev => {
@@ -76,16 +76,16 @@ const Checkout = () => {
 
   const handlePaymentMethodChange = (value: string) => {
     const paymentMethod = value as PaymentMethod;
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       paymentMethod,
       bank: paymentMethod === PaymentMethod.INSTALLMENT ? 'mbank' : null
     }));
   };
 
   const handleDeliveryMethodChange = (value: string) => {
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       deliveryMethod: value as DeliveryMethod
     }));
   };
@@ -96,32 +96,102 @@ const Checkout = () => {
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
-    
+
     if (!formData.firstName) newErrors.firstName = 'Введите имя';
     if (!formData.lastName) newErrors.lastName = 'Введите фамилию';
     if (!formData.phone) newErrors.phone = 'Введите телефон';
     if (!formData.email) newErrors.email = 'Введите email';
-    
+
     if (formData.deliveryMethod === DeliveryMethod.DELIVERY) {
       if (!formData.address) newErrors.address = 'Введите адрес доставки';
       if (!formData.city) newErrors.city = 'Введите город';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+  
+  const paymentMethodLabel = (method: string) => {
+    switch (method) {
+      case PaymentMethod.CASH:
+        return 'Наличными';
+      case PaymentMethod.CARD:
+        return 'Картой';
+      case PaymentMethod.QR:
+        return 'QR-код';
+      case PaymentMethod.INSTALLMENT:
+        return 'Рассрочка';
+      default:
+        return '—';
+    }
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const getBankName = (id: string | undefined) => {
+    const bank = banks.find(b => b.id === id);
+    return bank ? bank.name : '—';
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
-    
-    // Simulate order submission
-    setTimeout(() => {
+
+    // Добавим console.log для отладки
+    console.log('Form data before sending:', formData);
+    console.log('Delivery method:', formData.deliveryMethod);
+    console.log('Address:', formData.address);
+    console.log('City:', formData.city);
+
+    // 1. Сформировать текст заказа
+    const message = `
+🛒 *Новый заказ!*
+👤 Имя: ${formData.firstName} ${formData.lastName}
+📞 Телефон: ${formData.phone}
+📧 Email: ${formData.email}
+🚚 Способ доставки: ${formData.deliveryMethod === DeliveryMethod.DELIVERY ? 'Доставка' : 'Самовывоз'}
+
+${formData.deliveryMethod === DeliveryMethod.PICKUP
+        ? `🏬 Самовывоз: ${formData.pickupBranch || 'не выбрано'}`
+        : `🏙 Город: ${formData.city}\n🏡 Адрес: ${formData.address}`
+      }
+
+💳 Способ оплаты: ${paymentMethodLabel(formData.paymentMethod)}
+${formData.paymentMethod === PaymentMethod.INSTALLMENT ? `🏦 Банк: ${getBankName(formData.bank)}` : ''}
+
+📝 Комментарий: ${formData.notes || '—'}
+
+📦 *Товары:*
+${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.toLocaleString()} сом`).join('\n')}
+
+💰 *Итого: ${getTotal().toLocaleString()} с*
+`;
+
+    // Добавим console.log для проверки сообщения
+    console.log('Message to send:', message);
+
+    // 2. Отправка в Telegram
+    const token = '8162969099:AAFP_PlhNzBbb4eZTO6Q1NOt5IQasXanuTo';
+    const chatId = -4840747414;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'Markdown',
+        }),
+      });
+
+      // 3. Завершение заказа
       toast.success('Заказ успешно оформлен! Наш менеджер свяжется с вами в ближайшее время.');
       clearCart();
       navigate('/order-confirmation');
-    }, 1500);
+    } catch (error) {
+      toast.error('Ошибка отправки заказа в Telegram');
+      console.error(error);
+    }
   };
 
   if (items.length === 0) {
@@ -134,14 +204,14 @@ const Checkout = () => {
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-8">Оформление заказа</h1>
-        
+
         <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-8">
           {/* Left Column - Customer Information */}
           <div className="lg:w-2/3 space-y-8">
             {/* Personal Information */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold mb-4">Личные данные</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -156,7 +226,7 @@ const Checkout = () => {
                   />
                   {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Фамилия
@@ -170,7 +240,7 @@ const Checkout = () => {
                   />
                   {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Телефон
@@ -185,7 +255,7 @@ const Checkout = () => {
                   />
                   {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone}</p>}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email
@@ -201,12 +271,12 @@ const Checkout = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Delivery Method */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold mb-4">Способ получения</h2>
-              
-              <RadioGroup 
+
+              <RadioGroup
                 className="mb-4"
                 value={formData.deliveryMethod}
                 onValueChange={handleDeliveryMethodChange}
@@ -220,7 +290,7 @@ const Checkout = () => {
                   <Label htmlFor="pickup" className="font-medium">Самовывоз из магазина</Label>
                 </div>
               </RadioGroup>
-              
+
               {formData.deliveryMethod === DeliveryMethod.DELIVERY && (
                 <div className="mt-4 space-y-4">
                   <div>
@@ -240,7 +310,7 @@ const Checkout = () => {
                       <option value="Нарын">Нарын</option>
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Адрес доставки
@@ -257,22 +327,39 @@ const Checkout = () => {
                   </div>
                 </div>
               )}
-              
+
               {formData.deliveryMethod === DeliveryMethod.PICKUP && (
-                <div className="mt-4 p-4 bg-belek-gray rounded-lg">
-                  <div className="font-medium mb-2">Адрес магазина:</div>
-                  <p className="text-gray-700">г. Бишкек, ул. Киевская 123</p>
-                  <p className="text-gray-700">Время работы: Пн-Сб: 9:00 - 18:00</p>
-                  <p className="text-gray-700">Телефон: +996 555 123 456</p>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Выберите филиал
+                    </label>
+                    <select
+                      name="pickupBranch"
+                      value={formData.pickupBranch}
+                      onChange={handleInputChange}
+                      className="input-field"
+                      required
+                    >
+                      <option value="">Выберите филиал</option>
+                      <option value="Ошский рынок, ул. Бейшеналиевой, 42">
+                        Ошский рынок — ул. Бейшеналиевой, 42
+                      </option>
+                      <option value="АЮ GRAND, ул. Валиханова 2 ст8, 1 этаж, 101/1 бутик">
+                        АЮ GRAND — Валиханова 2 ст8, 1 этаж, 101/1
+                      </option>
+                    </select>
+                  </div>
                 </div>
               )}
+
             </div>
-            
+
             {/* Payment Method */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold mb-4">Способ оплаты</h2>
-              
-              <RadioGroup 
+
+              <RadioGroup
                 className="space-y-3"
                 value={formData.paymentMethod}
                 onValueChange={handlePaymentMethodChange}
@@ -286,7 +373,7 @@ const Checkout = () => {
                     <p className="text-gray-500">Оплата наличными при доставке или самовывозе</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
                     <RadioGroupItem value={PaymentMethod.CARD} id="card" />
@@ -296,7 +383,7 @@ const Checkout = () => {
                     <p className="text-gray-500">Visa, MasterCard</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
                     <RadioGroupItem value={PaymentMethod.QR} id="qr" />
@@ -306,7 +393,7 @@ const Checkout = () => {
                     <p className="text-gray-500">Отсканируйте QR-код и произведите оплату через мобильный банкинг</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
                     <RadioGroupItem value={PaymentMethod.INSTALLMENT} id="installment" />
@@ -317,7 +404,7 @@ const Checkout = () => {
                   </div>
                 </div>
               </RadioGroup>
-              
+
               {formData.paymentMethod === PaymentMethod.INSTALLMENT && (
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -336,11 +423,11 @@ const Checkout = () => {
                 </div>
               )}
             </div>
-            
+
             {/* Additional Information */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold mb-4">Дополнительно</h2>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Комментарий к заказу
@@ -356,12 +443,12 @@ const Checkout = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Right Column - Order Summary */}
           <div className="lg:w-1/3">
             <div className="bg-white rounded-lg shadow p-6 sticky top-24">
               <h2 className="text-lg font-semibold mb-4">Ваш заказ</h2>
-              
+
               <div className="divide-y">
                 {items.map((item) => (
                   <div key={item.id} className="py-3 flex justify-between">
@@ -375,7 +462,7 @@ const Checkout = () => {
                   </div>
                 ))}
               </div>
-              
+
               <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Товаров ({items.length})</span>
@@ -390,14 +477,14 @@ const Checkout = () => {
                   <span>{getTotal().toLocaleString()} с</span>
                 </div>
               </div>
-              
-              <button 
+
+              <button
                 type="submit"
                 className="w-full primary-button flex items-center justify-center py-3 mt-6"
               >
                 Оформить заказ
               </button>
-              
+
               <p className="text-xs text-gray-500 text-center mt-4">
                 Нажимая кнопку "Оформить заказ", вы соглашаетесь с условиями покупки
               </p>

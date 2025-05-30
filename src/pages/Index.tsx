@@ -59,7 +59,7 @@ const Index = () => {
         console.error("Ошибка загрузки категорий:", error.message);
       } else {
         setCategories(data || []);
-        console.log(data)
+    
       }
     };
 
@@ -136,6 +136,7 @@ const Index = () => {
               {featuredProducts.map(product => (
                 <ProductCard key={product.id} product={product} />
               ))}
+              {loading && <p>Загрузка...</p>}
             </div>
             <div className="mt-8 text-center">
               <Link to="/category/all" className="primary-button">
