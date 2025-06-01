@@ -6,15 +6,6 @@ import { useCart } from "@/hooks/use-cart";
 import { supabase } from "@/lib/supabase";
 import { useCategories } from "@/hooks/useCategories";
 
-// const categories = [
-//   { name: 'Холодильники', path: '/category/refrigerators' },
-//   { name: 'Стиральные машины', path: '/category/washing-machines' },
-//   { name: 'Телевизоры', path: '/category/tvs' },
-//   { name: 'Кухонная техника', path: '/category/kitchen' },
-//   { name: 'Кондиционеры', path: '/category/air-conditioners' },
-//   { name: 'Пылесосы', path: '/category/vacuum-cleaners' },
-// ];
-
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
