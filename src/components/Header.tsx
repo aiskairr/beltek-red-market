@@ -18,6 +18,16 @@ export const Header = () => {
   const resultsRef = useRef(null);
   const { categories } = useCategories();
 
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  const handleMouseEnter = (categoryIndex) => {
+    setActiveDropdown(categoryIndex);
+  };
+
+  const handleMouseLeave = () => {
+    setActiveDropdown(null);
+  };
+
   // Close search results when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -279,17 +289,52 @@ export const Header = () => {
       </div>
 
       {/* Categories navigation */}
-      <nav className="bg-belek-gray hidden md:block">
+      <nav className="bg-belek-gray hidden md:block relative">
         <div className="container mx-auto">
           <ul className="flex flex-wrap">
-            {categories.map((category) => (
-              <li key={category.category}>
+            {categories.map((category, index) => (
+              <li
+                key={category.category}
+                className="relative"
+                onMouseEnter={() => handleMouseEnter(index)}
+                onMouseLeave={handleMouseLeave}
+              >
                 <Link
                   to={`/category/${category.category}`}
-                  className="block px-4 py-3 hover:bg-belek-red hover:text-white transition-colors font-medium"
+                  className="block px-4 py-3 hover:bg-belek-red hover:text-white transition-colors font-medium flex items-center"
                 >
                   {category.category}
+                  {category.mini_categories && category.mini_categories.length > 0 && (
+                    <svg
+                      className="ml-1 w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
                 </Link>
+
+                {/* Dropdown menu */}
+                {category.mini_categories &&
+                  category.mini_categories.length > 0 &&
+                  activeDropdown === index && (
+                    <div className="absolute top-full left-0 bg-white shadow-lg border border-gray-200 min-w-48 z-50">
+                      <ul className="py-2">
+                        {category.mini_categories.map((miniCategory, miniIndex) => (
+                          <li key={miniIndex}>
+                            <Link
+                              to={`/category/${category.category}/${miniCategory}`}
+                              className="block px-4 py-2 text-gray-700 hover:bg-belek-red hover:text-white transition-colors"
+                            >
+                              {miniCategory}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
               </li>
             ))}
           </ul>
