@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
 import { Category } from '../../hooks/useCategories';
 import { Brand } from "@/hooks/useBrands";
+import { useMemo } from "react";
 
 interface ProductFormProps {
     categories: Category[];
@@ -19,6 +20,7 @@ interface ProductFormData {
     name: string;
     price: string;
     category: string;
+    mini_category: string;
     description: string;
     image: File | null;
     brand: string;
@@ -32,10 +34,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
             price: "",
             brand: "",
             category: "",
+            mini_category: "",
             description: "",
             image: null
         }
     });
+
+    // Получаем выбранную категорию для фильтрации подкатегорий
+    const selectedCategory = form.watch("category");
+    
+    // Получаем подкатегории для выбранной категории
+    const availableSubcategories = useMemo(() => {
+        if (!selectedCategory) return [];
+        
+        const category = categories.find(cat => cat.category === selectedCategory);
+        return category?.mini_categories || [];
+    }, [selectedCategory, categories]);
 
     const handleSubmit = async (data: ProductFormData) => {
         try {
@@ -68,6 +82,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
             await onSubmit({
                 name: data.name,
                 category: data.category,
+                mini_category: data.mini_category || null, // Если подкатегория не выбрана, отправляем null
                 brand: data.brand,
                 description: data.description,
                 price: numericPrice,
@@ -82,6 +97,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                 variant: "destructive"
             });
         }
+    };
+
+    // Сбрасываем подкатегорию при смене категории
+    const handleCategoryChange = (value: string, field: any) => {
+        field.onChange(value);
+        form.setValue("mini_category", ""); // Сбрасываем подкатегорию
     };
 
     return (
@@ -137,12 +158,44 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                         <FormControl>
                                             <select
                                                 {...field}
+                                                onChange={(e) => handleCategoryChange(e.target.value, field)}
                                                 className="w-full border px-3 py-2 rounded-md text-sm"
                                             >
                                                 <option value="">Выберите категорию</option>
                                                 {categories.map((cat) => (
                                                     <option key={cat.id} value={cat.category}>
                                                         {cat.category}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="mini_category"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Подкатегория</FormLabel>
+                                        <FormControl>
+                                            <select
+                                                {...field}
+                                                disabled={!selectedCategory || availableSubcategories.length === 0}
+                                                className="w-full border px-3 py-2 rounded-md text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                            >
+                                                <option value="">
+                                                    {!selectedCategory 
+                                                        ? "Сначала выберите категорию" 
+                                                        : availableSubcategories.length === 0 
+                                                        ? "Нет доступных подкатегорий"
+                                                        : "Выберите подкатегорию (опционально)"
+                                                    }
+                                                </option>
+                                                {availableSubcategories.map((subcategory, index) => (
+                                                    <option key={index} value={subcategory}>
+                                                        {subcategory}
                                                     </option>
                                                 ))}
                                             </select>

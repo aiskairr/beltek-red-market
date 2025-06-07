@@ -1,4 +1,4 @@
-// hooks/useCategories.ts (обновленная версия)
+// hooks/useCategories.ts (обновленная версия с подкатегориями)
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
@@ -7,12 +7,14 @@ export interface Category {
   id: number;
   category: string;
   image?: string;
+  mini_categories?: string[];
   created_at?: string;
 }
 
 export interface CategoryFormData {
   category: string;
   image: File | null;
+  mini_categories: string[];
 }
 
 export const useCategories = () => {
@@ -75,7 +77,8 @@ export const useCategories = () => {
         .from("categories")
         .insert([{ 
           category: formData.category,
-          image: imageUrl 
+          image: imageUrl,
+          mini_categories: formData.mini_categories
         }])
         .select()
         .single();
@@ -98,57 +101,53 @@ export const useCategories = () => {
       throw error;
     }
   };
-const onEdit = async (id?: number, formData?: Category) => {
-  try {
-    if (!id || !formData) return;
 
-    let imageUrl = "";
-const image = formData.image as string | File;
-if (image instanceof File) {
-  imageUrl = await uploadCategoryImage(image);
-} else {
-  imageUrl = image;
-}
-    if (image instanceof File) {
-  imageUrl = await uploadCategoryImage(image);
-} else {
-  imageUrl = image;
-}
+  const onEdit = async (id?: number, formData?: Category) => {
+    try {
+      if (!id || !formData) return;
 
-    const { data, error } = await supabase
-      .from("categories")
-      .update({
-        category: formData.category,
-        image: imageUrl,
-      })
-      .eq("id", id)
-      .select()
-      .single();
+      let imageUrl = "";
+      const image = formData.image as string | File;
+      if (image instanceof File) {
+        imageUrl = await uploadCategoryImage(image);
+      } else {
+        imageUrl = image;
+      }
 
-    if (error) throw error;
+      const { data, error } = await supabase
+        .from("categories")
+        .update({
+          category: formData.category,
+          image: imageUrl,
+          mini_categories: formData.mini_categories || []
+        })
+        .eq("id", id)
+        .select()
+        .single();
 
-    setCategories(prev =>
-      prev
-        .map(cat => (cat.id === id ? data : cat))
-        .sort((a, b) => a.category.localeCompare(b.category))
-    );
+      if (error) throw error;
 
-    toast({
-      title: "Категория обновлена",
-      description: `Категория "${formData.category}" успешно обновлена`,
-    });
+      setCategories(prev =>
+        prev
+          .map(cat => (cat.id === id ? data : cat))
+          .sort((a, b) => a.category.localeCompare(b.category))
+      );
 
-    return data;
-  } catch (error: any) {
-    toast({
-      title: "Ошибка обновления",
-      description: error.message,
-      variant: "destructive",
-    });
-    throw error;
-  }
-};
+      toast({
+        title: "Категория обновлена",
+        description: `Категория "${formData.category}" успешно обновлена`,
+      });
 
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Ошибка обновления",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
 
   const deleteCategory = async (id: number) => {
     try {

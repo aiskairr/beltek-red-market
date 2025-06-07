@@ -32,6 +32,8 @@ const App = () => (
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/order-confirmation" element={<OrderConfirmation />} />
             <Route path="/category/:categorySlug" element={<Category />} />
+             {/* Роут для категории с подкатегорией */}
+    <Route path="/category/:categorySlug/:subCategorySlug" element={<Category />} />
             <Route path="/product/:productId" element={<ProductDetail />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/FAQpage" element={<FAQPage />} />

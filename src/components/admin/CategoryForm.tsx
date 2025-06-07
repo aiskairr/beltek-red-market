@@ -1,4 +1,4 @@
-// components/admin/CategoryForm.tsx (обновленная версия)
+// components/admin/CategoryForm.tsx (обновленная версия с подкатегориями)
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
   const [categoryName, setCategoryName] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [subcategoryInput, setSubcategoryInput] = useState("");
+  const [subcategories, setSubcategories] = useState<string[]>([]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -51,6 +53,33 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
     if (input) input.value = '';
   };
 
+  const addSubcategory = () => {
+    const trimmedSubcategory = subcategoryInput.trim();
+    if (!trimmedSubcategory) {
+      alert('Введите название подкатегории');
+      return;
+    }
+    
+    if (subcategories.includes(trimmedSubcategory)) {
+      alert('Такая подкатегория уже добавлена');
+      return;
+    }
+
+    setSubcategories(prev => [...prev, trimmedSubcategory]);
+    setSubcategoryInput("");
+  };
+
+  const removeSubcategory = (indexToRemove: number) => {
+    setSubcategories(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleSubcategoryKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading) {
+      e.preventDefault();
+      addSubcategory();
+    }
+  };
+
   const handleSubmit = async () => {
     if (!categoryName.trim()) {
       alert('Введите название категории');
@@ -60,13 +89,16 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
     try {
       await onSubmit({
         category: categoryName.trim(),
-        image: selectedImage
+        image: selectedImage,
+        mini_categories: subcategories
       });
       
       // Сбрасываем форму после успешного добавления
       setCategoryName("");
       setSelectedImage(null);
       setImagePreview(null);
+      setSubcategoryInput("");
+      setSubcategories([]);
       const input = document.getElementById('category-image') as HTMLInputElement;
       if (input) input.value = '';
     } catch (error) {
@@ -100,6 +132,57 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
             disabled={loading}
             className="mt-1"
           />
+        </div>
+
+        {/* Подкатегории */}
+        <div>
+          <Label htmlFor="subcategory-input" className="text-sm font-medium">
+            Подкатегории (опционально)
+          </Label>
+          <div className="mt-1 flex gap-2">
+            <Input
+              id="subcategory-input"
+              placeholder="Введите название подкатегории"
+              value={subcategoryInput}
+              onChange={(e) => setSubcategoryInput(e.target.value)}
+              onKeyPress={handleSubcategoryKeyPress}
+              disabled={loading}
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              onClick={addSubcategory}
+              disabled={!subcategoryInput.trim() || loading}
+              className="bg-belek-red hover:bg-red-700"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Отображение добавленных подкатегорий */}
+          {subcategories.length > 0 && (
+            <div className="mt-3">
+              <p className="text-sm font-medium mb-2">Добавленные подкатегории:</p>
+              <div className="flex flex-wrap gap-2">
+                {subcategories.map((subcategory, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full text-sm"
+                  >
+                    <span>{subcategory}</span>
+                    <Button
+                      type="button"
+                      onClick={() => removeSubcategory(index)}
+                      disabled={loading}
+                      className="h-4 w-4 p-0 bg-transparent hover:bg-red-100 text-red-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Загрузка изображения */}

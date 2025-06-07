@@ -1,23 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Menu, Search, ShoppingCart, User, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Menu, Search, ShoppingCart, User, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useCart } from '@/hooks/use-cart';
-import { supabase } from '@/lib/supabase';
-import { useCategories } from '@/hooks/useCategories';
-
-// const categories = [
-//   { name: 'Холодильники', path: '/category/refrigerators' },
-//   { name: 'Стиральные машины', path: '/category/washing-machines' },
-//   { name: 'Телевизоры', path: '/category/tvs' },
-//   { name: 'Кухонная техника', path: '/category/kitchen' },
-//   { name: 'Кондиционеры', path: '/category/air-conditioners' },
-//   { name: 'Пылесосы', path: '/category/vacuum-cleaners' },
-// ];
+import { useCart } from "@/hooks/use-cart";
+import { supabase } from "@/lib/supabase";
+import { useCategories } from "@/hooks/useCategories";
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -25,23 +16,33 @@ export const Header = () => {
   const navigate = useNavigate();
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
-const { categories } = useCategories();
+  const { categories } = useCategories();
+
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  const handleMouseEnter = (categoryIndex) => {
+    setActiveDropdown(categoryIndex);
+  };
+
+  const handleMouseLeave = () => {
+    setActiveDropdown(null);
+  };
 
   // Close search results when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
-        searchRef.current && 
+        searchRef.current &&
         !searchRef.current.contains(event.target) &&
-        resultsRef.current && 
+        resultsRef.current &&
         !resultsRef.current.contains(event.target)
       ) {
         setShowSearchResults(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Search products in Supabase
@@ -55,20 +56,22 @@ const { categories } = useCategories();
     setSearchLoading(true);
     try {
       const { data, error } = await supabase
-        .from('products')
-        .select('id, name, price, image, brand, category')
-        .or(`name.ilike.%${query}%, brand.ilike.%${query}%, description.ilike.%${query}%`)
+        .from("products")
+        .select("id, name, price, image, brand, category")
+        .or(
+          `name.ilike.%${query}%, brand.ilike.%${query}%, description.ilike.%${query}%`
+        )
         .limit(8);
 
       if (error) {
-        console.error('Ошибка поиска:', error.message);
+        console.error("Ошибка поиска:", error.message);
         setSearchResults([]);
       } else {
         setSearchResults(data || []);
         setShowSearchResults(true);
       }
     } catch (error) {
-      console.error('Ошибка поиска:', error);
+      console.error("Ошибка поиска:", error);
       setSearchResults([]);
     } finally {
       setSearchLoading(false);
@@ -89,34 +92,34 @@ const { categories } = useCategories();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setShowSearchResults(false);
-      setSearchQuery('');
+      setSearchQuery("");
     }
   };
 
   const handleProductClick = (productId) => {
     navigate(`/product/${productId}`);
     setShowSearchResults(false);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   const clearSearch = () => {
-    setSearchQuery('');
+    setSearchQuery("");
     setSearchResults([]);
     setShowSearchResults(false);
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('ru-RU').format(price) + ' с';
+    return new Intl.NumberFormat("ru-RU").format(price) + " с";
   };
 
   const getCategoryName = (category) => {
     const categoryMap = {
-      'refrigerators': 'Холодильники',
-      'washing-machines': 'Стиральные машины',
-      'tvs': 'Телевизоры',
-      'kitchen': 'Кухонная техника',
-      'air-conditioners': 'Кондиционеры',
-      'vacuum-cleaners': 'Пылесосы'
+      refrigerators: "Холодильники",
+      "washing-machines": "Стиральные машины",
+      tvs: "Телевизоры",
+      kitchen: "Кухонная техника",
+      "air-conditioners": "Кондиционеры",
+      "vacuum-cleaners": "Пылесосы",
     };
     return categoryMap[category] || category;
   };
@@ -132,9 +135,24 @@ const { categories } = useCategories();
             <span>Email: info@belek-tech.kg</span>
           </div>
           <div className="flex items-center gap-4 text-sm">
-            <Link to="/about" className="hover:text-belek-red transition-colors">О компании</Link>
-            <Link to="/delivery" className="hover:text-belek-red transition-colors">Доставка</Link>
-            <Link to="/contacts" className="hover:text-belek-red transition-colors">Контакты</Link>
+            <Link
+              to="/about"
+              className="hover:text-belek-red transition-colors"
+            >
+              О компании
+            </Link>
+            <Link
+              to="/delivery"
+              className="hover:text-belek-red transition-colors"
+            >
+              Доставка
+            </Link>
+            <Link
+              to="/contacts"
+              className="hover:text-belek-red transition-colors"
+            >
+              Контакты
+            </Link>
           </div>
         </div>
       </div>
@@ -161,15 +179,18 @@ const { categories } = useCategories();
                 />
                 <div className="absolute right-0 top-0 h-full flex items-center">
                   {searchQuery && (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={clearSearch}
                       className="px-2 text-gray-500 hover:text-belek-red"
                     >
                       <X size={16} />
                     </button>
                   )}
-                  <button type="submit" className="px-3 text-gray-500 hover:text-belek-red">
+                  <button
+                    type="submit"
+                    className="px-3 text-gray-500 hover:text-belek-red"
+                  >
                     <Search size={20} />
                   </button>
                 </div>
@@ -178,7 +199,7 @@ const { categories } = useCategories();
 
             {/* Search Results Dropdown */}
             {showSearchResults && (
-              <div 
+              <div
                 ref={resultsRef}
                 className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-96 overflow-y-auto z-50"
               >
@@ -196,7 +217,7 @@ const { categories } = useCategories();
                         className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                       >
                         <img
-                          src={product.image || '/placeholder.svg'}
+                          src={product.image || "/placeholder.svg"}
                           alt={product.name}
                           className="w-12 h-12 object-cover rounded flex-shrink-0"
                         />
@@ -205,7 +226,8 @@ const { categories } = useCategories();
                             {product.name}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {product.brand} • {getCategoryName(product.category)}
+                            {product.brand} •{" "}
+                            {getCategoryName(product.category)}
                           </p>
                           <p className="text-sm font-semibold text-belek-red">
                             {formatPrice(product.price)}
@@ -217,9 +239,11 @@ const { categories } = useCategories();
                       <div className="p-3 border-t border-gray-200 bg-gray-50">
                         <button
                           onClick={() => {
-                            navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                            navigate(
+                              `/search?q=${encodeURIComponent(searchQuery)}`
+                            );
                             setShowSearchResults(false);
-                            setSearchQuery('');
+                            setSearchQuery("");
                           }}
                           className="text-sm text-belek-red hover:underline"
                         >
@@ -239,16 +263,22 @@ const { categories } = useCategories();
 
           {/* Actions */}
           <div className="flex items-center gap-4">
-            <Link to="/cart" className="flex flex-col items-center text-center text-sm relative">
+            <Link
+              to="/cart"
+              className="flex flex-col items-center text-center text-sm relative"
+            >
               <ShoppingCart className="h-6 w-6 mb-1" />
               <span>Корзина</span>
               {itemCount > 0 && (
-                <Badge className="absolute -top-2 -right-2 bg-belek-red text-white" variant="destructive">
+                <Badge
+                  className="absolute -top-2 -right-2 bg-belek-red text-white"
+                  variant="destructive"
+                >
                   {itemCount}
                 </Badge>
               )}
             </Link>
-            <button 
+            <button
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
@@ -259,17 +289,52 @@ const { categories } = useCategories();
       </div>
 
       {/* Categories navigation */}
-      <nav className="bg-belek-gray hidden md:block">
+      <nav className="bg-belek-gray hidden md:block relative">
         <div className="container mx-auto">
           <ul className="flex flex-wrap">
-            {categories.map((category) => (
-              <li key={category.category}>
-                <Link 
-                  to={`/category/${category.category}`} 
-                  className="block px-4 py-3 hover:bg-belek-red hover:text-white transition-colors font-medium"
+            {categories.map((category, index) => (
+              <li
+                key={category.category}
+                className="relative"
+                onMouseEnter={() => handleMouseEnter(index)}
+                onMouseLeave={handleMouseLeave}
+              >
+                <Link
+                  to={`/category/${category.category}`}
+                  className="block px-4 py-3 hover:bg-belek-red hover:text-white transition-colors font-medium flex items-center"
                 >
                   {category.category}
+                  {category.mini_categories && category.mini_categories.length > 0 && (
+                    <svg
+                      className="ml-1 w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
                 </Link>
+
+                {/* Dropdown menu */}
+                {category.mini_categories &&
+                  category.mini_categories.length > 0 &&
+                  activeDropdown === index && (
+                    <div className="absolute top-full left-0 bg-white shadow-lg border border-gray-200 min-w-48 z-50">
+                      <ul className="py-2">
+                        {category.mini_categories.map((miniCategory, miniIndex) => (
+                          <li key={miniIndex}>
+                            <Link
+                              to={`/category/${category.category}/${miniCategory}`}
+                              className="block px-4 py-2 text-gray-700 hover:bg-belek-red hover:text-white transition-colors"
+                            >
+                              {miniCategory}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
               </li>
             ))}
           </ul>
@@ -291,25 +356,84 @@ const { categories } = useCategories();
                 />
                 <div className="absolute right-0 top-0 h-full flex items-center">
                   {searchQuery && (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={clearSearch}
                       className="px-2 text-gray-500"
                     >
                       <X size={16} />
                     </button>
                   )}
-                  <button type="submit" className="px-3 text-gray-500">
-                    <Search size={20} />
-                  </button>
                 </div>
               </div>
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <div
+                  ref={resultsRef}
+                  className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-96 overflow-y-auto z-50"
+                >
+                  {searchLoading ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-belek-red mx-auto"></div>
+                      <p className="mt-2">Поиск...</p>
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <>
+                      {searchResults.map((product) => (
+                        <div
+                          key={product.id}
+                          onClick={() => handleProductClick(product.id)}
+                          className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        >
+                          <img
+                            src={product.image || "/placeholder.svg"}
+                            alt={product.name}
+                            className="w-12 h-12 object-cover rounded flex-shrink-0"
+                          />
+                          <div className="ml-3 flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {product.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {product.brand} •{" "}
+                              {getCategoryName(product.category)}
+                            </p>
+                            <p className="text-sm font-semibold text-belek-red">
+                              {formatPrice(product.price)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {searchQuery && (
+                        <div className="p-3 border-t border-gray-200 bg-gray-50">
+                          <button
+                            onClick={() => {
+                              navigate(
+                                `/search?q=${encodeURIComponent(searchQuery)}`
+                              );
+                              setShowSearchResults(false);
+                              setSearchQuery("");
+                            }}
+                            className="text-sm text-belek-red hover:underline"
+                          >
+                            Показать все результаты для "{searchQuery}"
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : searchQuery && !searchLoading ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <p>Ничего не найдено по запросу "{searchQuery}"</p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </form>
             <ul className="divide-y divide-gray-100">
               {categories.map((category) => (
                 <li key={category.category}>
-                  <Link 
-                    to={`/category/${category.category}`} 
+                  <Link
+                    to={`/category/${category.category}`}
                     className="block py-3"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -318,13 +442,31 @@ const { categories } = useCategories();
                 </li>
               ))}
               <li>
-                <Link to="/about" className="block py-3" onClick={() => setMobileMenuOpen(false)}>О компании</Link>
+                <Link
+                  to="/about"
+                  className="block py-3"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  О компании
+                </Link>
               </li>
               <li>
-                <Link to="/delivery" className="block py-3" onClick={() => setMobileMenuOpen(false)}>Доставка</Link>
+                <Link
+                  to="/delivery"
+                  className="block py-3"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Доставка
+                </Link>
               </li>
               <li>
-                <Link to="/contacts" className="block py-3" onClick={() => setMobileMenuOpen(false)}>Контакты</Link>
+                <Link
+                  to="/contacts"
+                  className="block py-3"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Контакты
+                </Link>
               </li>
             </ul>
           </div>

@@ -32,7 +32,7 @@ const categoryImages: Record<string, string> = {
 const ITEMS_PER_PAGE = 9;
 
 const Category = () => {
-  const { categorySlug = 'all' } = useParams<{ categorySlug: string }>();
+  const { categorySlug = 'all', subCategorySlug } = useParams<{ categorySlug: string, subCategorySlug: string }>();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -91,8 +91,14 @@ const Category = () => {
         .order("created_at", { ascending: false })
         .range(from, to);
 
+      // Фильтрация по категории
       if (categorySlug && categorySlug !== "all") {
         query = query.eq("category", categorySlug);
+      }
+
+      // Фильтрация по подкатегории (если есть)
+      if (subCategorySlug) {
+        query = query.eq("mini_category", subCategorySlug);
       }
 
       const { data, error } = await query;
@@ -141,7 +147,9 @@ const Category = () => {
     setAllProducts([]);
     setHasMore(true);
     fetchProducts(0, false);
-  }, [categorySlug]);
+
+  }, [categorySlug, subCategorySlug]);
+
 
   // Load more products
   const loadMoreProducts = async () => {
@@ -252,8 +260,17 @@ const Category = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
           <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
-            <div className="absolute inset-0 bg-opacity-80 flex items-center justify-center" style={{ background: "rgb(227 6 19 / var(--tw-bg-opacity, 1))" }}>
-              <h1 className="text-3xl font-bold text-white">{categoryNames[categorySlug] || 'Товары'}</h1>
+
+            <div className="absolute inset-0 bg-opacity-90 flex items-center justify-center" style={{ background: "rgb(227 6 19 / var(--tw-bg-opacity, 1))" }}>
+              <h1 className="text-3xl font-bold text-white text-center px-4">
+                {categorySlug === "all"
+                  ? "Товары"
+                  : subCategorySlug
+                    ? `${categorySlug} / ${subCategorySlug}`
+                    : categorySlug
+                }
+              </h1>
+
             </div>
           </div>
           <p className="text-gray-600">
