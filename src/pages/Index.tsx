@@ -65,43 +65,193 @@ const Index = () => {
 
     fetchCategories();
   }, [])
+   const slides = [
+    {
+      id: 1,
+      title: "СТИРАЛЬНЫЕ И СУШИЛЬНЫЕ",
+      subtitle: "МАШИНЫ HAIER СЕРИИ X",
+      description: "Нужны вашей одежде как воздух",
+      buttonText: "Перейти",
+      image: "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=800&h=600&fit=crop",
+      background: "linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 30%, #330a0a 70%, #4d0000 100%)"
+    },
+    {
+      id: 2,
+      title: "ХОЛОДИЛЬНИКИ ПРЕМИУМ",
+      subtitle: "КЛАССА LG SIGNATURE",
+      description: "Инновации для вашей кухни",
+      buttonText: "Смотреть",
+      image: "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=800&h=600&fit=crop",
+      background: "linear-gradient(135deg, #000000 0%, #1a0000 40%, #660000 80%, #800000 100%)"
+    },
+    {
+      id: 3,
+      title: "КУХОННАЯ ТЕХНИКА",
+      subtitle: "BOSCH СЕРИИ 8",
+      description: "Профессиональное качество дома",
+      buttonText: "Каталог",
+      image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop",
+      background: "linear-gradient(135deg, #0d0d0d 0%, #200000 35%, #4d0000 75%, #990000 100%)"
+    },
+    {
+      id: 4,
+      title: "КЛИМАТИЧЕСКАЯ ТЕХНИКА",
+      subtitle: "DAIKIN PREMIUM",
+      description: "Идеальный микроклимат круглый год",
+      buttonText: "Узнать больше",
+      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop",
+      background: "linear-gradient(135deg, #000000 0%, #0d0d0d 25%, #330000 60%, #cc0000 100%)"
+    }
+  ];
 
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const nextSlide = () => {
+    if (!isAnimating) {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentSlide((prev) => (prev + 1) % slides.length);
+        setIsAnimating(false);
+      }, 300);
+    }
+  };
+
+  const prevSlide = () => {
+    if (!isAnimating) {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+        setIsAnimating(false);
+      }, 300);
+    }
+  };
+
+  const goToSlide = (index) => {
+    if (!isAnimating && index !== currentSlide) {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentSlide(index);
+        setIsAnimating(false);
+      }, 300);
+    }
+  };
+
+  const current = slides[currentSlide];
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
 
       <main className="flex-1">
         {/* Hero Banner */}
-        <section className="relative bg-belek-black text-white">
-          <div className="container mx-auto px-4 py-16 md:py-24">
-            <div className="flex flex-col md:flex-row items-center">
-              <div className="md:w-1/2 z-10">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
-                  Лучшая бытовая техника для вашего дома
-                </h1>
-                <p className="text-lg md:text-xl mb-8 text-gray-300">
-                  Широкий ассортимент товаров от ведущих производителей с доставкой по всему Кыргызстану
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Link to="/category/all" className="primary-button">
-                    Смотреть каталог
-                  </Link>
-                  <Link to="/promo" className="outline-button">
-                    Акции и скидки
-                  </Link>
-                </div>
-              </div>
-              <div className="md:w-1/2 mt-8 md:mt-0">
+        <section 
+      className="relative min-h-[600px] md:min-h-[700px] overflow-hidden transition-all duration-1000 ease-in-out"
+      style={{ background: current.background }}
+    >
+      {/* Декоративные элементы фона */}
+      <div className="absolute inset-0">
+        <div className="absolute top-10 right-10 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 left-20 w-64 h-64 bg-red-400/8 rounded-full blur-2xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-red-500/15 rounded-full blur-xl animate-bounce"></div>
+      </div>
+
+      <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
+        <div className="flex flex-col lg:flex-row items-center min-h-[500px]">
+          
+          {/* Левая часть - текст */}
+          <div className="lg:w-1/2 text-white mb-8 lg:mb-0">
+            <div className={`transition-all duration-700 transform ${
+              isAnimating ? 'opacity-0 translate-x-[-50px]' : 'opacity-100 translate-x-0'
+            }`}>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 leading-tight">
+                <span className="block">{current.title}</span>
+                <span className="block text-red-400">{current.subtitle}</span>
+              </h1>
+              
+              <p className="text-lg md:text-xl mb-8 text-gray-300 max-w-md">
+                {current.description}
+              </p>
+              
+              <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-600/30">
+                {current.buttonText}
+              </button>
+            </div>
+          </div>
+
+          {/* Правая часть - изображение */}
+          <div className="lg:w-1/2 relative">
+            <div className={`transition-all duration-700 transform ${
+              isAnimating ? 'opacity-0 scale-95 rotate-2' : 'opacity-100 scale-100 rotate-0'
+            }`}>
+              <div className="relative max-w-lg mx-auto">
                 <img
-                  src={mainpage}
-                  alt="Home Appliances"
-                  className="max-w-full h-auto rounded-lg shadow-lg"
+                  src={current.image}
+                  alt={current.title}
+                  className="w-full h-auto rounded-2xl shadow-2xl"
                 />
+                
+                {/* Глянцевый эффект */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent rounded-2xl"></div>
+                
+                {/* Свечение */}
+                <div className="absolute -inset-4 bg-gradient-to-r from-red-600/20 to-red-800/20 rounded-3xl blur-lg -z-10"></div>
               </div>
             </div>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent"></div>
-        </section>
+        </div>
+      </div>
+
+      {/* Навигация */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-6">
+        
+        {/* Индикаторы */}
+        <div className="flex space-x-3">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                currentSlide === index 
+                  ? 'bg-white scale-125 shadow-lg' 
+                  : 'bg-white/40 hover:bg-white/60'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Кнопки навигации */}
+      <button
+        onClick={prevSlide}
+        className="absolute left-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 rounded-full transition-all duration-300 hover:scale-110 border border-white/20"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      
+      <button
+        onClick={nextSlide}
+        className="absolute right-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 rounded-full transition-all duration-300 hover:scale-110 border border-white/20"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+     
+
+      {/* Градиент внизу */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/30 to-transparent"></div>
+    </section>
 
         {/* Categories */}
         <section className="py-12 md:py-16">

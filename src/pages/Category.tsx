@@ -48,7 +48,7 @@ const Category = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Fetch brands from Supabase
   useEffect(() => {
     const fetchBrands = async () => {
@@ -57,21 +57,21 @@ const Category = () => {
           .from('brands')
           .select('*')
           .order('name');
-        
+
         if (error) {
           throw error;
         }
-        
+
         setBrands(data || []);
       } catch (err) {
         console.error('Ошибка загрузки брендов:', err);
         setError('Ошибка загрузки брендов');
       }
     };
-    
+
     fetchBrands();
   }, []);
-  
+
   // Fetch products from Supabase with pagination
   const fetchProducts = async (pageNum: number, append: boolean = false) => {
     try {
@@ -81,7 +81,7 @@ const Category = () => {
       } else {
         setLoadingMore(true);
       }
-      
+
       const from = pageNum * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
@@ -102,13 +102,13 @@ const Category = () => {
       }
 
       const newProducts = data || [];
-      
+
       if (append) {
         setProducts(prev => [...prev, ...newProducts]);
       } else {
         setProducts(newProducts);
         setAllProducts(newProducts);
-        
+
         // Calculate min and max prices from first batch
         if (newProducts.length > 0) {
           const prices = newProducts.map(product => product.price);
@@ -119,10 +119,10 @@ const Category = () => {
           setPriceRange([minPriceValue, maxPriceValue]);
         }
       }
-      
+
       // Check if there are more items to load
       setHasMore(newProducts.length === ITEMS_PER_PAGE);
-      
+
     } catch (err: any) {
       console.error("Ошибка загрузки товаров:", err.message);
       setError(`Ошибка загрузки товаров: ${err.message}`);
@@ -142,7 +142,7 @@ const Category = () => {
     setHasMore(true);
     fetchProducts(0, false);
   }, [categorySlug]);
-  
+
   // Load more products
   const loadMoreProducts = async () => {
     if (!loadingMore && hasMore) {
@@ -151,21 +151,21 @@ const Category = () => {
       await fetchProducts(nextPage, true);
     }
   };
-  
+
   // Apply filters and sorting to currently loaded products
   useEffect(() => {
     let result = [...products];
-    
+
     // Filter by brand
     if (selectedBrands.length > 0) {
       result = result.filter(product => selectedBrands.includes(product.brand));
     }
-    
+
     // Filter by price range
     result = result.filter(
       product => product.price >= priceRange[0] && product.price <= priceRange[1]
     );
-    
+
     // Apply sorting
     switch (sortBy) {
       case 'price-asc':
@@ -182,22 +182,22 @@ const Category = () => {
         // No specific sorting for featured
         break;
     }
-    
+
     setFilteredProducts(result);
   }, [products, selectedBrands, priceRange, sortBy]);
-  
+
   const handleBrandToggle = (brand: string) => {
-    setSelectedBrands(prev => 
-      prev.includes(brand) 
-        ? prev.filter(b => b !== brand) 
+    setSelectedBrands(prev =>
+      prev.includes(brand)
+        ? prev.filter(b => b !== brand)
         : [...prev, brand]
     );
   };
-  
+
   // Get available brands from current products
   const availableBrandNames = Array.from(new Set(products.map(product => product.brand)));
   const availableBrands = brands.filter(brand => availableBrandNames.includes(brand.name));
-  
+
   const resetFilters = () => {
     setSelectedBrands([]);
     setPriceRange([minPrice, maxPrice]);
@@ -229,7 +229,7 @@ const Category = () => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <div className="text-red-600 mb-2">⚠️ Произошла ошибка</div>
             <div className="text-gray-700">{error}</div>
-            <button 
+            <button
               onClick={() => {
                 setError(null);
                 setPage(0);
@@ -252,12 +252,7 @@ const Category = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
           <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
-            <img 
-              src={categoryImages[categorySlug] || categoryImages['all']} 
-              alt={categoryNames[categorySlug]} 
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-opacity-80 flex items-center justify-center" style={{ background: "rgb(227 6 19 / var(--tw-bg-opacity, 1))" }}>
               <h1 className="text-3xl font-bold text-white">{categoryNames[categorySlug] || 'Товары'}</h1>
             </div>
           </div>
@@ -266,7 +261,7 @@ const Category = () => {
             {products.length > 0 && ` из ${products.length} загруженных`}
           </p>
         </div>
-        
+
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters - Desktop */}
           <div className="lg:w-1/4 hidden lg:block">
@@ -290,7 +285,7 @@ const Category = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Brand Filter */}
               <div className="p-4">
                 <h3 className="font-medium mb-4">Бренд</h3>
@@ -311,12 +306,12 @@ const Category = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Products */}
           <div className="lg:w-3/4">
             {/* Sort and Filter Controls */}
             <div className="flex justify-between items-center mb-6">
-              <button 
+              <button
                 className="lg:hidden flex items-center gap-2 text-sm font-medium bg-white py-2 px-3 rounded border"
                 onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
               >
@@ -325,7 +320,7 @@ const Category = () => {
                 </svg>
                 Фильтры
               </button>
-              
+
               <div className="flex items-center">
                 <label htmlFor="sort" className="text-sm mr-2 hidden sm:inline">Сортировать по:</label>
                 <select
@@ -341,7 +336,7 @@ const Category = () => {
                 </select>
               </div>
             </div>
-            
+
             {/* Mobile Filters */}
             {mobileFiltersOpen && (
               <div className="bg-white rounded-lg shadow mb-6 p-4 lg:hidden">
@@ -383,7 +378,7 @@ const Category = () => {
                 </div>
               </div>
             )}
-            
+
             {/* Product Grid */}
             {filteredProducts.length > 0 ? (
               <>
@@ -392,7 +387,7 @@ const Category = () => {
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
-                
+
                 {/* Load More Button */}
                 {hasMore && (
                   <div className="text-center">
@@ -412,7 +407,7 @@ const Category = () => {
                     </button>
                   </div>
                 )}
-                
+
                 {!hasMore && products.length > ITEMS_PER_PAGE && (
                   <div className="text-center text-gray-500 py-4">
                     Все товары загружены
@@ -428,7 +423,7 @@ const Category = () => {
                 </div>
                 <h3 className="text-lg font-medium mb-2">Товары не найдены</h3>
                 <p className="text-gray-600 mb-4">Попробуйте изменить параметры фильтрации</p>
-                <button 
+                <button
                   onClick={resetFilters}
                   className="primary-button"
                 >
