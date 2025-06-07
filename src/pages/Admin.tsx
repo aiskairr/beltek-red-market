@@ -8,6 +8,7 @@ import { ProductsTab } from '@/components/admin/ProductsTab';
 import { CategoriesTab } from '@/components/admin/CategoriesTab';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandsTab } from '@/components/admin/BrandsTab';
+import ExcelUploader from '@/components/admin/ExcelUploader';
 
 const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState("products");
@@ -43,6 +44,9 @@ const Admin: React.FC = () => {
             <TabsTrigger value="categories" className="flex items-center">
               <Tag className="h-4 w-4 mr-2" /> Категории
             </TabsTrigger>
+            <TabsTrigger value="Excel" className="flex items-center">
+              <Tag className="h-4 w-4 mr-2" /> Excel
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="products">
@@ -61,6 +65,9 @@ const Admin: React.FC = () => {
 
           <TabsContent value="categories">
             <CategoriesTab />
+          </TabsContent>
+          <TabsContent value="Excel">
+            <ExcelUploader />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
-import { useCart } from '@/hooks/use-cart';
-import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { useNavigate } from 'react-router-dom';
+
+// Мок-хуки и компонентов для демонстрации
+const useCart = () => ({
+  items: [
+    { id: 1, name: 'Смартфон Samsung Galaxy', price: 25000, quantity: 1 },
+    { id: 2, name: 'Наушники AirPods', price: 8000, quantity: 2 }
+  ],
+  getTotal: () => 41000,
+  clearCart: () => console.log('Корзина очищена')
+});
+
+const useNavigate = () => (path) => console.log(`Навигация к: ${path}`);
 
 enum PaymentMethod {
   CASH = 'cash',
@@ -31,20 +35,21 @@ interface FormData {
   deliveryMethod: DeliveryMethod;
   paymentMethod: PaymentMethod;
   bank: string | null;
+  pickupBranch: string;
 }
 
 const banks = [
-  { id: 'mbank', name: 'Мбанк' },
-  { id: 'bakaibank', name: 'Бакай банк' },
+  { id: 'mbank', name: 'МБанк' },
+  { id: 'bakaibank', name: 'Бакай Банк' },
   { id: 'companion', name: 'Компаньон' },
-  { id: 'rsk', name: 'РСК' },
+  { id: 'rsk', name: 'РСК Банк' },
 ];
 
 const Checkout = () => {
   const { items, getTotal, clearCart } = useCart();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
     phone: '',
@@ -55,7 +60,7 @@ const Checkout = () => {
     deliveryMethod: DeliveryMethod.DELIVERY,
     paymentMethod: PaymentMethod.CASH,
     bank: null,
-    pickupBranch: '', 
+    pickupBranch: '',
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -64,7 +69,7 @@ const Checkout = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
 
-    // Clear error when field is typed in
+    // Очистить ошибку при вводе
     if (errors[name as keyof FormData]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -90,27 +95,27 @@ const Checkout = () => {
     }));
   };
 
-  const handleBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData(prev => ({ ...prev, bank: e.target.value }));
-  };
-
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
-    if (!formData.firstName) newErrors.firstName = 'Введите имя';
-    if (!formData.lastName) newErrors.lastName = 'Введите фамилию';
-    if (!formData.phone) newErrors.phone = 'Введите телефон';
-    if (!formData.email) newErrors.email = 'Введите email';
+    if (!formData.firstName.trim()) newErrors.firstName = 'Введите имя';
+    if (!formData.lastName.trim()) newErrors.lastName = 'Введите фамилию';
+    if (!formData.phone.trim()) newErrors.phone = 'Введите телефон';
+    if (!formData.email.trim()) newErrors.email = 'Введите email';
 
     if (formData.deliveryMethod === DeliveryMethod.DELIVERY) {
-      if (!formData.address) newErrors.address = 'Введите адрес доставки';
-      if (!formData.city) newErrors.city = 'Введите город';
+      if (!formData.address.trim()) newErrors.address = 'Введите адрес доставки';
+      if (!formData.city.trim()) newErrors.city = 'Введите город';
+    }
+
+    if (formData.deliveryMethod === DeliveryMethod.PICKUP && !formData.pickupBranch) {
+      newErrors.pickupBranch = 'Выберите филиал для самовывоза';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const paymentMethodLabel = (method: string) => {
     switch (method) {
       case PaymentMethod.CASH:
@@ -126,124 +131,94 @@ const Checkout = () => {
     }
   };
 
-  const getBankName = (id: string | undefined) => {
+  const getBankName = (id: string | null) => {
     const bank = banks.find(b => b.id === id);
     return bank ? bank.name : '—';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
 
     if (!validate()) return;
 
-    // Добавим console.log для отладки
-    console.log('Form data before sending:', formData);
-    console.log('Delivery method:', formData.deliveryMethod);
-    console.log('Address:', formData.address);
-    console.log('City:', formData.city);
-
-    // 1. Сформировать текст заказа
-    const message = `
-🛒 *Новый заказ!*
-👤 Имя: ${formData.firstName} ${formData.lastName}
-📞 Телефон: ${formData.phone}
-📧 Email: ${formData.email}
-🚚 Способ доставки: ${formData.deliveryMethod === DeliveryMethod.DELIVERY ? 'Доставка' : 'Самовывоз'}
-
+    // Формирование сообщения для WhatsApp
+    const message = `🛒 Новый заказ!
+Имя: ${formData.firstName} ${formData.lastName}
+Телефон: ${formData.phone}
+Email: ${formData.email}
+Способ доставки: ${formData.deliveryMethod === DeliveryMethod.DELIVERY ? 'Доставка' : 'Самовывоз'}
 ${formData.deliveryMethod === DeliveryMethod.PICKUP
-        ? `🏬 Самовывоз: ${formData.pickupBranch || 'не выбрано'}`
-        : `🏙 Город: ${formData.city}\n🏡 Адрес: ${formData.address}`
-      }
-
-💳 Способ оплаты: ${paymentMethodLabel(formData.paymentMethod)}
-${formData.paymentMethod === PaymentMethod.INSTALLMENT ? `🏦 Банк: ${getBankName(formData.bank)}` : ''}
-
-📝 Комментарий: ${formData.notes || '—'}
-
-📦 *Товары:*
-${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.toLocaleString()} сом`).join('\n')}
-
-💰 *Итого: ${getTotal().toLocaleString()} с*
-`;
-
-    // Добавим console.log для проверки сообщения
-    console.log('Message to send:', message);
-
-    // 2. Отправка в Telegram
-    const token = '8162969099:AAFP_PlhNzBbb4eZTO6Q1NOt5IQasXanuTo';
-    const chatId = -4840747414;
-
-    try {
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: 'Markdown',
-        }),
-      });
-
-      // 3. Завершение заказа
-      toast.success('Заказ успешно оформлен! Наш менеджер свяжется с вами в ближайшее время.');
-      clearCart();
-      navigate('/order-confirmation');
-    } catch (error) {
-      toast.error('Ошибка отправки заказа в Telegram');
-      console.error(error);
+      ? `Самовывоз: ${formData.pickupBranch}`
+      : `Город: ${formData.city}\nАдрес: ${formData.address}`
     }
+Способ оплаты: ${paymentMethodLabel(formData.paymentMethod)}${formData.paymentMethod === PaymentMethod.INSTALLMENT ? ` (${getBankName(formData.bank)})` : ''}
+Комментарий: ${formData.notes || '—'}
+
+Товары:
+${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.toLocaleString()} с`).join('\n')}
+
+💰 Итого: ${getTotal().toLocaleString()} с`;
+
+    // WhatsApp номер (замените на реальный)
+    const whatsappNumber = '996703763346';
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+
+    // Открытие WhatsApp
+    window.open(whatsappUrl, '_blank');
+
+    // Очистка корзины и редирект
+    clearCart();
+    navigate('/order-confirmation');
   };
 
-  if (items.length === 0) {
-    navigate('/cart');
-    return null;
-  }
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-8">Оформление заказа</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-center mb-8">Оформление заказа</h1>
 
-        <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-8">
-          {/* Left Column - Customer Information */}
-          <div className="lg:w-2/3 space-y-8">
-            {/* Personal Information */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Личные данные</h2>
+        <div className="flex flex-col lg:flex-row gap-8 max-w-6xl mx-auto">
+          {/* Левая колонка - Информация о клиенте */}
+          <div className="lg:w-2/3 space-y-6">
+            {/* Личные данные */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Личные данные</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Имя
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Имя *
                   </label>
                   <input
                     type="text"
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.firstName ? 'border-red-500' : ''}`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.firstName ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
                   {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Фамилия
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Фамилия *
                   </label>
                   <input
                     type="text"
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.lastName ? 'border-red-500' : ''}`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.lastName ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
                   {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Телефон
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Телефон *
                   </label>
                   <input
                     type="tel"
@@ -251,57 +226,71 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
                     value={formData.phone}
                     onChange={handleInputChange}
                     placeholder="+996 XXX XXX XXX"
-                    className={`input-field ${errors.phone ? 'border-red-500' : ''}`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
                   {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
                   </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.email ? 'border-red-500' : ''}`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
                   {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
                 </div>
               </div>
             </div>
 
-            {/* Delivery Method */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Способ получения</h2>
+            {/* Способ получения */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Способ получения</h2>
 
-              <RadioGroup
-                className="mb-4"
-                value={formData.deliveryMethod}
-                onValueChange={handleDeliveryMethodChange}
-              >
-                <div className="flex items-center space-x-2 mb-2">
-                  <RadioGroupItem value={DeliveryMethod.DELIVERY} id="delivery" />
-                  <Label htmlFor="delivery" className="font-medium">Доставка</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={DeliveryMethod.PICKUP} id="pickup" />
-                  <Label htmlFor="pickup" className="font-medium">Самовывоз из магазина</Label>
-                </div>
-              </RadioGroup>
+              <div className="space-y-3 mb-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="deliveryMethod"
+                    value={DeliveryMethod.DELIVERY}
+                    checked={formData.deliveryMethod === DeliveryMethod.DELIVERY}
+                    onChange={(e) => handleDeliveryMethodChange(e.target.value)}
+                    className="mr-3"
+                  />
+                  <span className="font-medium">Доставка</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="deliveryMethod"
+                    value={DeliveryMethod.PICKUP}
+                    checked={formData.deliveryMethod === DeliveryMethod.PICKUP}
+                    onChange={(e) => handleDeliveryMethodChange(e.target.value)}
+                    className="mr-3"
+                  />
+                  <span className="font-medium">Самовывоз из магазина</span>
+                </label>
+              </div>
 
               {formData.deliveryMethod === DeliveryMethod.DELIVERY && (
-                <div className="mt-4 space-y-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Город
                     </label>
                     <select
                       name="city"
                       value={formData.city}
                       onChange={handleInputChange}
-                      className="input-field"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="Бишкек">Бишкек</option>
                       <option value="Ош">Ош</option>
@@ -312,8 +301,8 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Адрес доставки
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Адрес доставки *
                     </label>
                     <input
                       type="text"
@@ -321,7 +310,9 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
                       value={formData.address}
                       onChange={handleInputChange}
                       placeholder="Улица, дом, квартира"
-                      className={`input-field ${errors.address ? 'border-red-500' : ''}`}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.address ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     />
                     {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address}</p>}
                   </div>
@@ -329,92 +320,107 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
               )}
 
               {formData.deliveryMethod === DeliveryMethod.PICKUP && (
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Выберите филиал
-                    </label>
-                    <select
-                      name="pickupBranch"
-                      value={formData.pickupBranch}
-                      onChange={handleInputChange}
-                      className="input-field"
-                      required
-                    >
-                      <option value="">Выберите филиал</option>
-                      <option value="Ошский рынок, ул. Бейшеналиевой, 42">
-                        Ошский рынок — ул. Бейшеналиевой, 42
-                      </option>
-                      <option value="АЮ GRAND, ул. Валиханова 2 ст8, 1 этаж, 101/1 бутик">
-                        АЮ GRAND — Валиханова 2 ст8, 1 этаж, 101/1
-                      </option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Выберите филиал *
+                  </label>
+                  <select
+                    name="pickupBranch"
+                    value={formData.pickupBranch}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.pickupBranch ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Выберите филиал</option>
+                    <option value="Ошский рынок, ул. Бейшеналиевой, 42">
+                      Ошский рынок — ул. Бейшеналиевой, 42
+                    </option>
+                    <option value="АЮ GRAND, ул. Валиханова 2 ст8, 1 этаж, 101/1 бутик">
+                      АЮ GRAND — Валиханова 2 ст8, 1 этаж, 101/1
+                    </option>
+                  </select>
+                  {errors.pickupBranch && <p className="text-sm text-red-500 mt-1">{errors.pickupBranch}</p>}
                 </div>
               )}
-
             </div>
 
-            {/* Payment Method */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Способ оплаты</h2>
+            {/* Способ оплаты */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Способ оплаты</h2>
 
-              <RadioGroup
-                className="space-y-3"
-                value={formData.paymentMethod}
-                onValueChange={handlePaymentMethodChange}
-              >
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <RadioGroupItem value={PaymentMethod.CASH} id="cash" />
+              <div className="space-y-4">
+                <label className="flex items-start">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={PaymentMethod.CASH}
+                    checked={formData.paymentMethod === PaymentMethod.CASH}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                    className="mt-1 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Наличными при получении</div>
+                    <div className="text-sm text-gray-500">Оплата наличными при доставке или самовывозе</div>
                   </div>
-                  <div className="ml-3 text-sm">
-                    <Label htmlFor="cash" className="font-medium">Наличными при получении</Label>
-                    <p className="text-gray-500">Оплата наличными при доставке или самовывозе</p>
-                  </div>
-                </div>
+                </label>
 
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <RadioGroupItem value={PaymentMethod.CARD} id="card" />
+                <label className="flex items-start">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={PaymentMethod.CARD}
+                    checked={formData.paymentMethod === PaymentMethod.CARD}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                    className="mt-1 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Оплата картой при получении</div>
+                    <div className="text-sm text-gray-500">Visa, MasterCard</div>
                   </div>
-                  <div className="ml-3 text-sm">
-                    <Label htmlFor="card" className="font-medium">Оплата картой при получении</Label>
-                    <p className="text-gray-500">Visa, MasterCard</p>
-                  </div>
-                </div>
+                </label>
 
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <RadioGroupItem value={PaymentMethod.QR} id="qr" />
+                <label className="flex items-start">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={PaymentMethod.QR}
+                    checked={formData.paymentMethod === PaymentMethod.QR}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                    className="mt-1 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Перевод по QR-коду</div>
+                    <div className="text-sm text-gray-500">Отсканируйте QR-код и произведите оплату</div>
                   </div>
-                  <div className="ml-3 text-sm">
-                    <Label htmlFor="qr" className="font-medium">Перевод по QR-коду</Label>
-                    <p className="text-gray-500">Отсканируйте QR-код и произведите оплату через мобильный банкинг</p>
-                  </div>
-                </div>
+                </label>
 
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <RadioGroupItem value={PaymentMethod.INSTALLMENT} id="installment" />
+                <label className="flex items-start">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={PaymentMethod.INSTALLMENT}
+                    checked={formData.paymentMethod === PaymentMethod.INSTALLMENT}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                    className="mt-1 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Рассрочка</div>
+                    <div className="text-sm text-gray-500">Покупка в рассрочку через банк-партнер</div>
                   </div>
-                  <div className="ml-3 text-sm">
-                    <Label htmlFor="installment" className="font-medium">Рассрочка</Label>
-                    <p className="text-gray-500">Покупка в рассрочку через банк-партнер</p>
-                  </div>
-                </div>
-              </RadioGroup>
+                </label>
+              </div>
 
               {formData.paymentMethod === PaymentMethod.INSTALLMENT && (
                 <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Выберите банк
                   </label>
                   <select
                     name="bank"
                     value={formData.bank || ''}
-                    onChange={handleBankChange}
-                    className="input-field"
+                    onChange={(e) => setFormData(prev => ({ ...prev, bank: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {banks.map(bank => (
                       <option key={bank.id} value={bank.id}>{bank.name}</option>
@@ -424,12 +430,12 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
               )}
             </div>
 
-            {/* Additional Information */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Дополнительно</h2>
+            {/* Комментарий */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Дополнительно</h2>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Комментарий к заказу
                 </label>
                 <textarea
@@ -437,24 +443,24 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows={3}
-                  className="input-field"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Дополнительная информация о заказе, особые пожелания..."
                 ></textarea>
               </div>
             </div>
           </div>
 
-          {/* Right Column - Order Summary */}
+          {/* Правая колонка - Сводка заказа */}
           <div className="lg:w-1/3">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-24">
-              <h2 className="text-lg font-semibold mb-4">Ваш заказ</h2>
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
+              <h2 className="text-xl font-semibold mb-4">Ваш заказ</h2>
 
-              <div className="divide-y">
+              <div className="space-y-3 mb-4">
                 {items.map((item) => (
-                  <div key={item.id} className="py-3 flex justify-between">
+                  <div key={item.id} className="flex justify-between py-2 border-b">
                     <div>
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-sm text-gray-500">{item.quantity} x {item.price.toLocaleString()} с</div>
+                      <div className="font-medium text-sm">{item.name}</div>
+                      <div className="text-xs text-gray-500">{item.quantity} x {item.price.toLocaleString()} с</div>
                     </div>
                     <div className="font-medium">
                       {(item.price * item.quantity).toLocaleString()} с
@@ -463,7 +469,7 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
                 ))}
               </div>
 
-              <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
+              <div className="border-t pt-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Товаров ({items.length})</span>
                   <span>{getTotal().toLocaleString()} с</span>
@@ -472,15 +478,16 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
                   <span className="text-gray-600">Доставка</span>
                   <span>Бесплатно</span>
                 </div>
-                <div className="border-t pt-3 mt-3 flex justify-between font-bold text-lg">
+                <div className="border-t pt-3 flex justify-between font-bold text-lg">
                   <span>Итого</span>
                   <span>{getTotal().toLocaleString()} с</span>
                 </div>
               </div>
 
               <button
-                type="submit"
-                className="w-full primary-button flex items-center justify-center py-3 mt-6"
+                type="button"
+                onClick={handleSubmit}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium mt-6"
               >
                 Оформить заказ
               </button>
@@ -490,9 +497,8 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
               </p>
             </div>
           </div>
-        </form>
-      </main>
-      <Footer />
+        </div>
+      </div>
     </div>
   );
 };
