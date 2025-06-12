@@ -7,6 +7,7 @@ export interface Product {
   id: number;
   name: string;
   category: string;
+  mini_category?: string; // Добавлено поле для мини-категории
   description: string;
   price: number;
   brand: string;
@@ -42,10 +43,11 @@ export const useProducts = () => {
       setLoading(false);
     }
   };
+
   const uploadProductImage = async (file: File): Promise<string> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `categories/${fileName}`;
+    const filePath = `products/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('products')
@@ -61,63 +63,67 @@ export const useProducts = () => {
 
     return data.publicUrl;
   };
-const onEdit = async (id?: number, formData?: Product) => {
-  try {
-    if (!id || !formData) return;
 
-    let imageUrl = "";
-    const image = formData.image as string | File;
+  const onEdit = async (id?: number, formData?: Product) => {
+    try {
+      if (!id || !formData) return;
 
-    if (image instanceof File) {
-      imageUrl = await uploadProductImage(image);
-    } else {
-      imageUrl = image;
+      let imageUrl = "";
+      const image = formData.image as string | File;
+
+      if (image instanceof File) {
+        imageUrl = await uploadProductImage(image);
+      } else {
+        imageUrl = image;
+      }
+
+      const { data, error } = await supabase
+        .from("products")
+        .update({
+          name: formData.name,
+          price: formData.price,
+          description: formData.description,
+          image: imageUrl,
+          brand: formData.brand,
+          category: formData.category,
+          mini_category: formData.mini_category || null, // Добавлено поле мини-категории
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setProducts(prev =>
+        prev
+          .map(prod => (prod.id === id ? data : prod))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
+
+      toast({
+        title: "Товар обновлён",
+        description: `Товар "${formData.name}" успешно обновлён`,
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Ошибка обновления товара",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
     }
-
-    const { data, error } = await supabase
-      .from("products")
-      .update({
-        name: formData.name,
-        price: formData.price,
-        description: formData.description,
-        image: imageUrl,
-        brand: formData.brand,
-        category: formData.category,
-        id: formData.id,
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    setProducts(prev =>
-      prev
-        .map(prod => (prod.id === id ? data : prod))
-        .sort((a, b) => a.name.localeCompare(b.name))
-    );
-
-    toast({
-      title: "Товар обновлён",
-      description: `Товар "${formData.name}" успешно обновлён`,
-    });
-
-    return data;
-  } catch (error: any) {
-    toast({
-      title: "Ошибка обновления товара",
-      description: error.message,
-      variant: "destructive",
-    });
-    throw error;
-  }
-};
+  };
 
   const addProduct = async (productData: Omit<Product, 'id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase
         .from("products")
-        .insert([productData])
+        .insert([{
+          ...productData,
+          mini_category: productData.mini_category || null // Добавлено поле мини-категории
+        }])
         .select()
         .single();
 

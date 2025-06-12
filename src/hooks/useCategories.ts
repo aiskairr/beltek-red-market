@@ -1,4 +1,4 @@
-// hooks/useCategories.ts (обновленная версия с подкатегориями)
+// hooks/useCategories.ts (обновленная версия с подкатегориями и импортом)
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
@@ -208,6 +208,64 @@ export const useCategories = () => {
     }
   };
 
+  // Массовый импорт категорий из Excel
+  const bulkImportCategories = async (categoriesData: Omit<Category, 'id' | 'created_at'>[]) => {
+    try {
+      setLoading(true);
+      
+      // Проверяем на дубликаты с существующими категориями
+      const existingCategories = categories.map(cat => cat.category.toLowerCase());
+      const duplicates = categoriesData.filter(cat => 
+        existingCategories.includes(cat.category.toLowerCase())
+      );
+      
+      if (duplicates.length > 0) {
+        const duplicateNames = duplicates.map(cat => cat.category).join(', ');
+        throw new Error(`Найдены дубликаты категорий: ${duplicateNames}`);
+      }
+
+      // Подготавливаем данные для вставки
+      const categoriesToInsert = categoriesData.map(cat => ({
+        category: cat.category,
+        image: cat.image || null,
+        mini_categories: cat.mini_categories || []
+      }));
+
+      // Вставляем все категории одним запросом
+      const { data, error } = await supabase
+        .from("categories")
+        .insert(categoriesToInsert)
+        .select();
+
+      if (error) throw error;
+
+      // Обновляем локальное состояние
+      setCategories(prev => 
+        [...prev, ...data].sort((a, b) => a.category.localeCompare(b.category))
+      );
+
+      toast({
+        title: "Импорт завершен",
+        description: `Успешно импортировано ${data.length} категорий`,
+      });
+
+      return {
+        success: true,
+        imported: data.length,
+        categories: data
+      };
+    } catch (error: any) {
+      toast({
+        title: "Ошибка импорта",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -218,6 +276,7 @@ export const useCategories = () => {
     addCategory,
     deleteCategory,
     onEdit,
+    bulkImportCategories,
     refetch: fetchCategories
   };
 };

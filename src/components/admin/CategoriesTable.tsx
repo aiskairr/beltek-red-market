@@ -1,4 +1,4 @@
-// components/admin/CategoriesTable.tsx (обновленная версия с модалкой)
+// components/admin/CategoriesTable.tsx (обновленная версия с мини-категориями)
 import { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger 
 } from "@/components/ui/dialog";
-import { Edit, Trash, Image as ImageIcon, X } from "lucide-react";
+import { Edit, Trash, Image as ImageIcon, X, Plus, Minus } from "lucide-react";
 import { Category } from '../../hooks/useCategories';
 
 interface CategoriesTableProps {
@@ -28,7 +28,8 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     category: '',
-    image: ''
+    image: '',
+    mini_categories: [] as string[]
   });
   const [imagePreview, setImagePreview] = useState<string>('');
 
@@ -36,7 +37,8 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
     setEditingCategory(category);
     setFormData({
       category: category.category,
-      image: category.image || ''
+      image: category.image || '',
+      mini_categories: category.mini_categories || []
     });
     setImagePreview(category.image || '');
     setIsModalOpen(true);
@@ -45,7 +47,7 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingCategory(null);
-    setFormData({ category: '', image: '' });
+    setFormData({ category: '', image: '', mini_categories: [] });
     setImagePreview('');
   };
 
@@ -62,13 +64,35 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
     }
   };
 
+  const addMiniCategory = () => {
+    setFormData(prev => ({
+      ...prev,
+      mini_categories: [...prev.mini_categories, '']
+    }));
+  };
+
+  const removeMiniCategory = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      mini_categories: prev.mini_categories.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateMiniCategory = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      mini_categories: prev.mini_categories.map((cat, i) => i === index ? value : cat)
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingCategory && onEdit) {
       const updatedCategory: Category = {
         ...editingCategory,
         category: formData.category,
-        image: formData.image
+        image: formData.image,
+        mini_categories: formData.mini_categories.filter(cat => cat.trim() !== '')
       };
       onEdit(editingCategory.id, updatedCategory);
       handleModalClose();
@@ -113,6 +137,7 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
                 <TableHead>ID</TableHead>
                 <TableHead>Изображение</TableHead>
                 <TableHead>Название</TableHead>
+                <TableHead>Мини-категории</TableHead>
                 <TableHead>Дата создания</TableHead>
                 <TableHead className="text-right">Действия</TableHead>
               </TableRow>
@@ -135,6 +160,22 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{category.category}</TableCell>
+                  <TableCell>
+                    {category.mini_categories && category.mini_categories.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {category.mini_categories.map((miniCat, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                          >
+                            {miniCat}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Нет мини-категорий</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {category.created_at 
                       ? new Date(category.created_at).toLocaleDateString('ru-RU')
@@ -175,7 +216,7 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
 
       {/* Модальное окно редактирования */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Редактировать категорию</DialogTitle>
           </DialogHeader>
@@ -228,6 +269,52 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
               />
             </div>
 
+            {/* Секция мини-категорий */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Мини-категории</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addMiniCategory}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Добавить
+                </Button>
+              </div>
+              
+              {formData.mini_categories.length === 0 ? (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  Мини-категории не добавлены
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {formData.mini_categories.map((miniCat, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        type="text"
+                        value={miniCat}
+                        onChange={(e) => updateMiniCategory(index, e.target.value)}
+                        placeholder={`Мини-категория ${index + 1}`}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeMiniCategory(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <DialogFooter>
               <Button
                 type="button"
@@ -248,4 +335,4 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
       </Dialog>
     </>
   );
-}; 
+};

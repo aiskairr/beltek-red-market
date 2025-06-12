@@ -23,7 +23,7 @@ import { Edit, Trash, Image as ImageIcon, X } from "lucide-react";
 import { Category } from '@/hooks/useCategories';
 import { Brand } from '@/hooks/useBrands';
 
-// Определяем интерфейс Product (замените на ваш существующий)
+// Обновленный интерфейс Product с мини-категорией
 interface Product {
   id: number;
   name: string;
@@ -31,14 +31,15 @@ interface Product {
   price: number;
   image?: string;
   category: string;
-    brand: string;
+  mini_category?: string; // Добавлено поле для мини-категории
+  brand: string;
   category_id?: number;
   created_at?: string;
 }
 
 interface ProductsTableProps {
-    categories: Category[];
-       brands: Brand[]
+  categories: Category[];
+  brands: Brand[]
   products: Product[];
   onDelete: (id: number) => void;
   onEdit?: (id: number, formData: Product) => void;
@@ -54,10 +55,30 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     price: '',
     image: '',
     brand: '',
-    category: ''
+    category: '',
+    mini_category: ''
   });
-
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+
+  // Получаем выбранную категорию и её мини-категории
+  useEffect(() => {
+    if (formData.category) {
+      const category = categories.find(cat => cat.category === formData.category);
+      setSelectedCategory(category || null);
+      
+      // Сбрасываем мини-категорию при смене основной категории
+      if (category && formData.mini_category) {
+        const hasMiniCategory = category.mini_categories?.includes(formData.mini_category);
+        if (!hasMiniCategory) {
+          setFormData(prev => ({ ...prev, mini_category: '' }));
+        }
+      }
+    } else {
+      setSelectedCategory(null);
+      setFormData(prev => ({ ...prev, mini_category: '' }));
+    }
+  }, [formData.category, categories]);
 
   const handleEditClick = (product: Product) => {
     setEditingProduct(product);
@@ -68,6 +89,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
       image: product.image || '',
       brand: product.brand,
       category: product.category,
+      mini_category: product.mini_category || '',
     });
     setImagePreview(product.image || '');
     setIsModalOpen(true);
@@ -76,8 +98,9 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
-    setFormData({ name: '', description: '', price: '', image: '', brand: '', category: '' });
+    setFormData({ name: '', description: '', price: '', image: '', brand: '', category: '', mini_category: '' });
     setImagePreview('');
+    setSelectedCategory(null);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,9 +124,10 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price) || 0,
-        image: formData.image ,
+        image: formData.image,
         brand: formData.brand,
         category: formData.category,
+        mini_category: formData.mini_category,
       };
       onEdit(editingProduct.id, updatedProduct);
       handleModalClose();
@@ -156,6 +180,8 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                 <TableHead>ID</TableHead>
                 <TableHead>Изображение</TableHead>
                 <TableHead>Название</TableHead>
+                <TableHead>Категория</TableHead>
+                <TableHead>Мини-категория</TableHead>
                 <TableHead>Описание</TableHead>
                 <TableHead>Цена</TableHead>
                 <TableHead>Дата создания</TableHead>
@@ -180,6 +206,20 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {product.category}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {product.mini_category ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        {product.mini_category}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">-</span>
+                    )}
+                  </TableCell>
                   <TableCell className="max-w-xs">
                     {product.description ? (
                       <div className="truncate" title={product.description}>
@@ -261,20 +301,21 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                 className="resize-none"
               />
             </div>
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="product-category">Категория</Label>
                 <Select 
-                  
+                  value={formData.category}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите категорию" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="aw">Без категории</SelectItem>
+                    <SelectItem value="none">Без категории</SelectItem>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.category.toString()}>
+                      <SelectItem key={category.id} value={category.category}>
                         {category.category}
                       </SelectItem>
                     ))}
@@ -283,25 +324,53 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="product-brand">Бренд</Label>
+                <Label htmlFor="product-mini-category">Мини-категория</Label>
                 <Select 
-                   
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, brand: value }))}
+                  value={formData.mini_category}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, mini_category: value }))}
+                  disabled={!selectedCategory || !selectedCategory.mini_categories?.length}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Выберите бренд" />
+                    <SelectValue placeholder={
+                      !selectedCategory 
+                        ? "Сначала выберите категорию" 
+                        : !selectedCategory.mini_categories?.length
+                          ? "Нет мини-категорий"
+                          : "Выберите мини-категорию"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="aw">Без бренда</SelectItem>
-                    {brands.map((brand) => (
-                      <SelectItem key={brand.id} value={brand.name.toString()}>
-                        {brand.name}
+                    <SelectItem value="none">Без мини-категории</SelectItem>
+                    {selectedCategory?.mini_categories?.map((miniCat, index) => (
+                      <SelectItem key={index} value={miniCat}>
+                        {miniCat}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product-brand">Бренд</Label>
+              <Select 
+                value={formData.brand}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, brand: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите бренд" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Без бренда</SelectItem>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.name}>
+                      {brand.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="product-price">Цена (сом)</Label>
               <Input

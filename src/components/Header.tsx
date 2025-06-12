@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, Search, ShoppingCart, User, X } from "lucide-react";
+import { Menu, Search, ShoppingCart, User, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/use-cart";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,7 @@ export const Header = () => {
   const { categories } = useCategories();
 
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [expandedMobileCategories, setExpandedMobileCategories] = useState(new Set());
 
   const handleMouseEnter = (categoryIndex) => {
     setActiveDropdown(categoryIndex);
@@ -26,6 +27,17 @@ export const Header = () => {
 
   const handleMouseLeave = () => {
     setActiveDropdown(null);
+  };
+
+  // Функция для переключения раскрытия мобильных категорий
+  const toggleMobileCategory = (categoryName) => {
+    const newExpanded = new Set(expandedMobileCategories);
+    if (newExpanded.has(categoryName)) {
+      newExpanded.delete(categoryName);
+    } else {
+      newExpanded.add(categoryName);
+    }
+    setExpandedMobileCategories(newExpanded);
   };
 
   // Close search results when clicking outside
@@ -122,6 +134,12 @@ export const Header = () => {
       "vacuum-cleaners": "Пылесосы",
     };
     return categoryMap[category] || category;
+  };
+
+  // Функция для закрытия мобильного меню
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+    setExpandedMobileCategories(new Set());
   };
 
   return (
@@ -429,46 +447,88 @@ export const Header = () => {
                 </div>
               )}
             </form>
-            <ul className="divide-y divide-gray-100">
-              {categories.map((category) => (
-                <li key={category.category}>
+
+            {/* Мобильные категории с подкатегориями */}
+            <div className="max-h-80 overflow-y-auto">
+              <ul className="divide-y divide-gray-100">
+                {categories.map((category) => (
+                  <li key={category.category}>
+                    <div className="flex items-center justify-between">
+                      <Link
+                        to={`/category/${category.category}`}
+                        className="flex-1 py-3 font-medium"
+                        onClick={closeMobileMenu}
+                      >
+                        {category.category}
+                      </Link>
+                      {category.mini_categories && category.mini_categories.length > 0 && (
+                        <button
+                          onClick={() => toggleMobileCategory(category.category)}
+                          className="p-2 text-gray-500 hover:text-belek-red transition-colors"
+                          aria-label={`Показать подкатегории для ${category.category}`}
+                        >
+                          {expandedMobileCategories.has(category.category) ? (
+                            <ChevronUp size={16} />
+                          ) : (
+                            <ChevronDown size={16} />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Подкатегории */}
+                    {category.mini_categories && 
+                     category.mini_categories.length > 0 && 
+                     expandedMobileCategories.has(category.category) && (
+                      <div className="pb-2">
+                        <ul className="bg-gray-50 rounded-lg mt-2 divide-y divide-gray-200">
+                          {category.mini_categories.map((miniCategory, miniIndex) => (
+                            <li key={miniIndex}>
+                              <Link
+                                to={`/category/${category.category}/${miniCategory}`}
+                                className="block px-4 py-2 text-sm text-gray-600 hover:bg-belek-red hover:text-white transition-colors"
+                                onClick={closeMobileMenu}
+                              >
+                                {miniCategory}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </li>
+                ))}
+                
+                {/* Дополнительные ссылки */}
+                <li>
                   <Link
-                    to={`/category/${category.category}`}
-                    className="block py-3"
-                    onClick={() => setMobileMenuOpen(false)}
+                    to="/about"
+                    className="block py-3 font-medium"
+                    onClick={closeMobileMenu}
                   >
-                    {category.category}
+                    О компании
                   </Link>
                 </li>
-              ))}
-              <li>
-                <Link
-                  to="/about"
-                  className="block py-3"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  О компании
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/delivery"
-                  className="block py-3"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Доставка
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/contacts"
-                  className="block py-3"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Контакты
-                </Link>
-              </li>
-            </ul>
+                <li>
+                  <Link
+                    to="/delivery"
+                    className="block py-3 font-medium"
+                    onClick={closeMobileMenu}
+                  >
+                    Доставка
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/contacts"
+                    className="block py-3 font-medium"
+                    onClick={closeMobileMenu}
+                  >
+                    Контакты
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       )}
