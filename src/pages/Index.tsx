@@ -324,21 +324,27 @@ const Index = () => {
 
         {/* Brands */}
         <section className="py-12 md:py-16 bg-belek-gray">
-          <div className="container mx-auto px-4">
-            <h2 className="section-header">Наши бренды</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4 mt-8">
-              {brands.map((brand) => (
-                <div
-                  key={brand.name}
-                  className="bg-white rounded-lg p-4 flex flex-col items-center justify-center h-24 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <img src={brand.image} alt={brand.name} />
-                  <p className="text-sm text-center">{brand.name}</p>
-                </div>
-              ))}
-            </div>
+  <div className="container mx-auto px-4">
+    <h2 className="section-header">Наши бренды</h2>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4 mt-8">
+      {brands.map((brand) => (
+        <div
+          key={brand.name}
+          className="bg-white rounded-lg p-4 flex flex-col items-center justify-center h-32 shadow-sm hover:shadow-md transition-shadow"
+        >
+          <div className="w-full h-16 flex items-center justify-center overflow-hidden">
+            <img
+              src={brand.image}
+              alt={brand.name}
+              className="max-h-full max-w-full object-contain"
+            />
           </div>
-        </section>
+     </div>
+      ))}
+    </div>
+  </div>
+</section>
+
 
         {/* Features */}
         <section className="py-12 md:py-16">
