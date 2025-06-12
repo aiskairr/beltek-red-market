@@ -411,7 +411,7 @@ const Category = () => {
                     <button
                       onClick={loadMoreProducts}
                       disabled={loadingMore}
-                      className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                      style={{backgroundColor: "#E30613"}} className="text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
                     >
                       {loadingMore ? (
                         <>
