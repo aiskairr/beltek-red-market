@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -9,47 +9,316 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { supabase } from '@/lib/supabase';
 
-const categoryNames: Record<string, string> = {
-  'all': 'Все товары',
-  'refrigerators': 'Холодильники',
-  'washing-machines': 'Стиральные машины',
-  'tvs': 'Телевизоры',
-  'kitchen': 'Кухонная техника',
-  'air-conditioners': 'Кондиционеры',
-  'vacuum-cleaners': 'Пылесосы',
-};
+const PRODUCTS_PER_PAGE = 9;
 
-const categoryImages: Record<string, string> = {
-  'all': '/all-appliances.jpg',
-  'refrigerators': '/category-refrigerators.jpg',
-  'washing-machines': '/category-washing-machines.jpg',
-  'tvs': '/category-tvs.jpg',
-  'kitchen': '/category-kitchen.jpg',
-  'air-conditioners': '/category-air-conditioners.jpg',
-  'vacuum-cleaners': '/category-vacuum-cleaners.jpg',
-};
+// Типы для категорий и брендов
+interface Category {
+  id?: string;
+  name: string;
+  slug: string;
+}
 
-const ITEMS_PER_PAGE = 9;
+interface Brand {
+  id: string;
+  name: string;
+}
 
 const Category = () => {
   const { categorySlug = 'all', subCategorySlug } = useParams<{ categorySlug: string, subCategorySlug: string }>();
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  
+  // Добавляем недостающие состояния
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [brands, setBrands] = useState<any[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 150000]);
+  
+  // Состояние для доступных брендов в категории
+  const [availableBrandsInCategory, setAvailableBrandsInCategory] = useState<string[]>([]);
+  
+  // Разделяем состояния для цены
+  const [tempPriceRange, setTempPriceRange] = useState<[number, number]>([0, 200000]); // Временное значение для слайдера
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 200000]); // Применяемое значение для фильтрации
   const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(150000);
+  const [maxPrice, setMaxPrice] = useState(200000);
+  
   const [sortBy, setSortBy] = useState<string>('featured');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Пагинация
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Fetch brands from Supabase
+  // Debounced функция для применения фильтра по цене
+  const applyPriceFilter = useCallback(() => {
+    const timeoutId = setTimeout(() => {
+      setPriceRange(tempPriceRange);
+    }, 800); // Задержка 800мс после последнего изменения
+
+    return () => clearTimeout(timeoutId);
+  }, [tempPriceRange]);
+
+  // Применяем фильтр по цене с задержкой
+  useEffect(() => {
+    const cleanup = applyPriceFilter();
+    return cleanup;
+  }, [applyPriceFilter]);
+
+  // Загрузка динамических категорий
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      
+      setCategories(data || []);
+      
+      // Найти текущую категорию
+      if (categorySlug !== 'all') {
+        const decodedSlug = decodeURIComponent(categorySlug);
+        const category = data?.find(cat => 
+          cat.slug === categorySlug || 
+          cat.slug === decodedSlug || 
+          cat.name === decodedSlug ||
+          cat.id === categorySlug
+        );
+        setCurrentCategory(category || null);
+        console.log('Найдена категория:', category);
+      } else {
+        setCurrentCategory({ name: 'Все товары', slug: 'all' });
+      }
+      
+    } catch (err) {
+      console.error('Ошибка загрузки категорий:', err);
+      if (categorySlug !== 'all') {
+        setCurrentCategory({ 
+          name: decodeURIComponent(categorySlug), 
+          slug: categorySlug 
+        });
+      } else {
+        setCurrentCategory({ name: 'Все товары', slug: 'all' });
+      }
+    }
+  };
+
+  // Получение доступных брендов для категории
+  const fetchAvailableBrands = async () => {
+    try {
+      let brandQuery = supabase
+        .from("products")
+        .select("brand");
+
+      // Фильтрация по категории
+      if (categorySlug && categorySlug !== "all") {
+        const decodedSlug = decodeURIComponent(categorySlug);
+        
+        if (currentCategory && currentCategory.name) {
+          brandQuery = brandQuery.eq("category", currentCategory.name);
+        } else {
+          brandQuery = brandQuery.eq("category", decodedSlug);
+        }
+      }
+
+      if (subCategorySlug) {
+        brandQuery = brandQuery.eq("mini_category", subCategorySlug);
+      }
+
+      const { data: brandData, error: brandError } = await brandQuery;
+      
+      if (brandError) throw brandError;
+
+      // Получаем уникальные бренды
+      if (brandData && brandData.length > 0) {
+        const uniqueBrands = Array.from(new Set(brandData.map(product => product.brand))).filter(Boolean);
+        setAvailableBrandsInCategory(uniqueBrands);
+      } else {
+        setAvailableBrandsInCategory([]);
+      }
+
+    } catch (err: any) {
+      console.error("Ошибка получения брендов для категории:", err.message);
+      setAvailableBrandsInCategory([]);
+    }
+  };
+
+  const fetchProductsInfo = async () => {
+    try {
+      // Сначала получаем все товары без фильтра по цене для определения диапазона
+      let priceQuery = supabase
+        .from("products")
+        .select("price");
+
+      // Фильтрация по категории для диапазона цен
+      if (categorySlug && categorySlug !== "all") {
+        const decodedSlug = decodeURIComponent(categorySlug);
+        
+        if (currentCategory && currentCategory.name) {
+          priceQuery = priceQuery.eq("category", currentCategory.name);
+        } else {
+          priceQuery = priceQuery.eq("category", decodedSlug);
+        }
+      }
+
+      if (subCategorySlug) {
+        priceQuery = priceQuery.eq("mini_category", subCategorySlug);
+      }
+
+      // Применяем только фильтр по бренду для диапазона цен
+      if (selectedBrands.length > 0) {
+        priceQuery = priceQuery.in("brand", selectedBrands);
+      }
+
+      const { data: priceData, error: priceError } = await priceQuery;
+      
+      if (priceError) throw priceError;
+
+      // Устанавливаем диапазон цен
+      if (priceData && priceData.length > 0) {
+        const prices = priceData.map(product => product.price);
+        const minPriceValue = Math.min(...prices);
+        const maxPriceValue = Math.max(...prices);
+        setMinPrice(minPriceValue);
+        setMaxPrice(maxPriceValue);
+        
+        // Устанавливаем начальные значения только при первой загрузке категории
+        if (priceRange[0] === 0 && priceRange[1] === 200000) {
+          setPriceRange([minPriceValue, maxPriceValue]);
+          setTempPriceRange([minPriceValue, maxPriceValue]);
+        }
+      }
+
+      // Теперь получаем количество с учетом всех фильтров включая цену
+      let countQuery = supabase
+        .from("products")
+        .select("*", { count: 'exact', head: true });
+
+      // Фильтрация по категории
+      if (categorySlug && categorySlug !== "all") {
+        const decodedSlug = decodeURIComponent(categorySlug);
+        
+        if (currentCategory && currentCategory.name) {
+          countQuery = countQuery.eq("category", currentCategory.name);
+        } else {
+          countQuery = countQuery.eq("category", decodedSlug);
+        }
+      }
+
+      if (subCategorySlug) {
+        countQuery = countQuery.eq("mini_category", subCategorySlug);
+      }
+
+      // Применяем все фильтры для подсчета
+      if (selectedBrands.length > 0) {
+        countQuery = countQuery.in("brand", selectedBrands);
+      }
+
+      countQuery = countQuery
+        .gte("price", priceRange[0])
+        .lte("price", priceRange[1]);
+
+      const { count, error: countError } = await countQuery;
+      
+      if (countError) throw countError;
+
+      setTotalCount(count || 0);
+
+    } catch (err: any) {
+      console.error("Ошибка получения информации о товарах:", err.message);
+    }
+  };
+
+  // Загрузка товаров с пагинацией
+  const fetchProducts = async (page: number = 0, reset: boolean = false) => {
+    try {
+      if (page === 0) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      setError(null);
+
+      let query = supabase
+        .from("products")
+        .select("*")
+        .range(page * PRODUCTS_PER_PAGE, (page + 1) * PRODUCTS_PER_PAGE - 1);
+
+      // Фильтрация по категории
+      if (categorySlug && categorySlug !== "all") {
+        const decodedSlug = decodeURIComponent(categorySlug);
+        
+        if (currentCategory && currentCategory.name) {
+          query = query.eq("category", currentCategory.name);
+        } else {
+          query = query.eq("category", decodedSlug);
+        }
+      }
+
+      if (subCategorySlug) {
+        query = query.eq("mini_category", subCategorySlug);
+      }
+
+      // Применяем фильтры
+      if (selectedBrands.length > 0) {
+        query = query.in("brand", selectedBrands);
+      }
+
+      query = query
+        .gte("price", priceRange[0])
+        .lte("price", priceRange[1]);
+
+      // Сортировка
+      switch (sortBy) {
+        case 'price-asc':
+          query = query.order("price", { ascending: true });
+          break;
+        case 'price-desc':
+          query = query.order("price", { ascending: false });
+          break;
+        case 'name-asc':
+          query = query.order("name", { ascending: true });
+          break;
+        case 'featured':
+        default:
+          query = query.order("created_at", { ascending: false });
+          break;
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const newProducts = data || [];
+      
+      if (reset || page === 0) {
+        setProducts(newProducts);
+      } else {
+        setProducts(prev => [...prev, ...newProducts]);
+      }
+
+      setHasMore(newProducts.length === PRODUCTS_PER_PAGE);
+      setCurrentPage(page);
+      
+      console.log(`Загружено товаров на странице ${page}:`, newProducts.length);
+
+    } catch (err: any) {
+      console.error("Ошибка загрузки товаров:", err.message);
+      setError(`Ошибка загрузки товаров: ${err.message}`);
+      if (reset || page === 0) {
+        setProducts([]);
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Загрузка брендов
   useEffect(() => {
     const fetchBrands = async () => {
       try {
@@ -57,142 +326,57 @@ const Category = () => {
           .from('brands')
           .select('*')
           .order('name');
-
-        if (error) {
-          throw error;
-        }
-
+        if (error) throw error;
         setBrands(data || []);
       } catch (err) {
         console.error('Ошибка загрузки брендов:', err);
-        setError('Ошибка загрузки брендов');
       }
     };
-
     fetchBrands();
   }, []);
 
-  // Fetch products from Supabase with pagination
-  const fetchProducts = async (pageNum: number, append: boolean = false) => {
-    try {
-      if (pageNum === 0) {
-        setLoading(true);
-        setError(null);
-      } else {
-        setLoadingMore(true);
-      }
+  // Загрузка категорий при монтировании
+  useEffect(() => {
+    fetchCategories();
+  }, [categorySlug]);
 
-      const from = pageNum * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      let query = supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      // Фильтрация по категории
-      if (categorySlug && categorySlug !== "all") {
-        query = query.eq("category", categorySlug);
-      }
-
-      // Фильтрация по подкатегории (если есть)
-      if (subCategorySlug) {
-        query = query.eq("mini_category", subCategorySlug);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      const newProducts = data || [];
-
-      if (append) {
-        setProducts(prev => [...prev, ...newProducts]);
-      } else {
-        setProducts(newProducts);
-        setAllProducts(newProducts);
-
-        // Calculate min and max prices from first batch
-        if (newProducts.length > 0) {
-          const prices = newProducts.map(product => product.price);
-          const minPriceValue = Math.min(...prices);
-          const maxPriceValue = Math.max(...prices);
-          setMinPrice(minPriceValue);
-          setMaxPrice(maxPriceValue);
-          setPriceRange([minPriceValue, maxPriceValue]);
-        }
-      }
-
-      // Check if there are more items to load
-      setHasMore(newProducts.length === ITEMS_PER_PAGE);
-
-    } catch (err: any) {
-      console.error("Ошибка загрузки товаров:", err.message);
-      setError(`Ошибка загрузки товаров: ${err.message}`);
+  // Загрузка товаров после загрузки категории
+  useEffect(() => {
+    if (currentCategory !== null || categorySlug === 'all') {
+      // Сбрасываем фильтры при смене категории
       setProducts([]);
-      setHasMore(false);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      setCurrentPage(0);
+      setHasMore(true);
+      
+      // Загружаем доступные бренды для категории
+      fetchAvailableBrands();
+      
+      // Сначала получаем информацию о товарах и диапазоне цен
+      fetchProductsInfo().then(() => {
+        // Затем загружаем товары
+        fetchProducts(0, true);
+      });
     }
-  };
+  }, [currentCategory, subCategorySlug]);
 
-  // Initial fetch
+  // Перезагрузка при изменении фильтров или сортировки
   useEffect(() => {
-    setPage(0);
-    setProducts([]);
-    setAllProducts([]);
-    setHasMore(true);
-    fetchProducts(0, false);
-
-  }, [categorySlug, subCategorySlug]);
-
-
-  // Load more products
-  const loadMoreProducts = async () => {
-    if (!loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      await fetchProducts(nextPage, true);
+    if (currentCategory !== null || categorySlug === 'all') {
+      setProducts([]);
+      setCurrentPage(0);
+      setHasMore(true);
+      fetchProducts(0, true);
+      // Обновляем информацию о товарах при изменении фильтров
+      fetchProductsInfo();
     }
-  };
+  }, [selectedBrands, priceRange, sortBy]);
 
-  // Apply filters and sorting to currently loaded products
+  // Обновляем диапазон цен при изменении бренда
   useEffect(() => {
-    let result = [...products];
-
-    // Filter by brand
-    if (selectedBrands.length > 0) {
-      result = result.filter(product => selectedBrands.includes(product.brand));
+    if (currentCategory !== null || categorySlug === 'all') {
+      fetchProductsInfo();
     }
-
-    // Filter by price range
-    result = result.filter(
-      product => product.price >= priceRange[0] && product.price <= priceRange[1]
-    );
-
-    // Apply sorting
-    switch (sortBy) {
-      case 'price-asc':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-desc':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'name-asc':
-        result.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'featured':
-      default:
-        // No specific sorting for featured
-        break;
-    }
-
-    setFilteredProducts(result);
-  }, [products, selectedBrands, priceRange, sortBy]);
+  }, [selectedBrands]);
 
   const handleBrandToggle = (brand: string) => {
     setSelectedBrands(prev =>
@@ -202,13 +386,30 @@ const Category = () => {
     );
   };
 
-  // Get available brands from current products
-  const availableBrandNames = Array.from(new Set(products.map(product => product.brand)));
-  const availableBrands = brands.filter(brand => availableBrandNames.includes(brand.name));
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchProducts(currentPage + 1);
+    }
+  };
+
+  // Обработчик изменения слайдера - теперь изменяет только временное значение
+  const handlePriceChange = (value: [number, number]) => {
+    setTempPriceRange(value);
+  };
+
+  // Кнопка для мгновенного применения фильтра по цене
+  const applyPriceFilterNow = () => {
+    setPriceRange(tempPriceRange);
+  };
+
+  // Фильтруем бренды по тем, что доступны в текущей категории
+  const availableBrands = brands.filter(brand => availableBrandsInCategory.includes(brand.name));
 
   const resetFilters = () => {
     setSelectedBrands([]);
-    setPriceRange([minPrice, maxPrice]);
+    const resetRange: [number, number] = [minPrice, maxPrice];
+    setPriceRange(resetRange);
+    setTempPriceRange(resetRange);
     setSortBy('featured');
   };
 
@@ -240,8 +441,7 @@ const Category = () => {
             <button
               onClick={() => {
                 setError(null);
-                setPage(0);
-                fetchProducts(0, false);
+                fetchProducts(0, true);
               }}
               className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
             >
@@ -260,30 +460,22 @@ const Category = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
           <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
-
             <div className="absolute inset-0 bg-opacity-90 flex items-center justify-center" style={{ background: "rgb(227 6 19 / var(--tw-bg-opacity, 1))" }}>
               <h1 className="text-3xl font-bold text-white text-center px-4">
-                {categorySlug === "all"
-                  ? "Товары"
-                  : subCategorySlug
-                    ? `${categorySlug} / ${subCategorySlug}`
-                    : categorySlug
-                }
+                {currentCategory?.name || decodeURIComponent(categorySlug)}
               </h1>
-
             </div>
           </div>
+          
           <p className="text-gray-600">
-            Показано товаров: {filteredProducts.length}
-            {products.length > 0 && ` из ${products.length} загруженных`}
+            Показано товаров: {products.length} из {totalCount}
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Filters - Desktop */}
+          {/* Фильтры */}
           <div className="lg:w-1/4 hidden lg:block">
             <div className="bg-white rounded-lg shadow divide-y">
-              {/* Price Range */}
               <div className="p-4">
                 <h3 className="font-medium mb-4">Цена</h3>
                 <div className="px-2">
@@ -292,18 +484,33 @@ const Category = () => {
                     min={minPrice}
                     max={maxPrice}
                     step={1000}
-                    value={priceRange}
-                    onValueChange={(value) => setPriceRange(value as [number, number])}
+                    value={tempPriceRange}
+                    onValueChange={handlePriceChange}
                     className="mb-4"
                   />
-                  <div className="flex justify-between text-sm">
-                    <span>{priceRange[0].toLocaleString()} с</span>
-                    <span>{priceRange[1].toLocaleString()} с</span>
+                  <div className="flex justify-between text-sm mb-3">
+                    <span>{tempPriceRange[0].toLocaleString()} с</span>
+                    <span>{tempPriceRange[1].toLocaleString()} с</span>
                   </div>
+                  
+                  {/* Показываем диапазон доступных цен */}
+                  <div className="flex justify-between text-xs text-gray-500 mb-3">
+                    <span>Мин: {minPrice.toLocaleString()} с</span>
+                    <span>Макс: {maxPrice.toLocaleString()} с</span>
+                  </div>
+                  
+                  {/* Показываем кнопку применения только если есть изменения */}
+                  {(tempPriceRange[0] !== priceRange[0] || tempPriceRange[1] !== priceRange[1]) && (
+                    <button
+                      onClick={applyPriceFilterNow}
+                      className="w-full bg-blue-600 text-white text-sm py-2 px-3 rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Применить
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Brand Filter */}
               <div className="p-4">
                 <h3 className="font-medium mb-4">Бренд</h3>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -324,20 +531,15 @@ const Category = () => {
             </div>
           </div>
 
-          {/* Products */}
+          {/* Товары */}
           <div className="lg:w-3/4">
-            {/* Sort and Filter Controls */}
             <div className="flex justify-between items-center mb-6">
               <button
                 className="lg:hidden flex items-center gap-2 text-sm font-medium bg-white py-2 px-3 rounded border"
                 onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
-                </svg>
                 Фильтры
               </button>
-
               <div className="flex items-center">
                 <label htmlFor="sort" className="text-sm mr-2 hidden sm:inline">Сортировать по:</label>
                 <select
@@ -354,87 +556,44 @@ const Category = () => {
               </div>
             </div>
 
-            {/* Mobile Filters */}
-            {mobileFiltersOpen && (
-              <div className="bg-white rounded-lg shadow mb-6 p-4 lg:hidden">
-                <h3 className="font-medium mb-4">Фильтры</h3>
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium mb-3">Цена</h4>
-                  <div className="px-2">
-                    <Slider
-                      defaultValue={[minPrice, maxPrice]}
-                      min={minPrice}
-                      max={maxPrice}
-                      step={1000}
-                      value={priceRange}
-                      onValueChange={(value) => setPriceRange(value as [number, number])}
-                      className="mb-4"
-                    />
-                    <div className="flex justify-between text-sm">
-                      <span>{priceRange[0].toLocaleString()} с</span>
-                      <span>{priceRange[1].toLocaleString()} с</span>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-3">Бренд</h4>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                    {availableBrands.map(brand => (
-                      <div key={brand.id} className="flex items-center">
-                        <Checkbox
-                          id={`mobile-brand-${brand.id}`}
-                          checked={selectedBrands.includes(brand.name)}
-                          onCheckedChange={() => handleBrandToggle(brand.name)}
-                        />
-                        <Label htmlFor={`mobile-brand-${brand.id}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 truncate">
-                          {brand.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Product Grid */}
-            {filteredProducts.length > 0 ? (
+            {products.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                  {filteredProducts.map(product => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {products.map(product => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
-
-                {/* Load More Button */}
+                
+                {/* Кнопка "Загрузить еще" */}
                 {hasMore && (
-                  <div className="text-center">
+                  <div className="mt-8 text-center">
                     <button
-                      onClick={loadMoreProducts}
+                      onClick={handleLoadMore}
                       disabled={loadingMore}
-                      style={{backgroundColor: "#E30613"}} className="text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                      className="primary-button inline-flex items-center gap-2 min-w-[200px] justify-center"
                     >
                       {loadingMore ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                           Загрузка...
                         </>
                       ) : (
-                        'Показать ещё'
+                        'Загрузить еще'
                       )}
                     </button>
                   </div>
                 )}
-
-                {!hasMore && products.length > ITEMS_PER_PAGE && (
-                  <div className="text-center text-gray-500 py-4">
-                    Все товары загружены
+                
+                {!hasMore && products.length > 0 && (
+                  <div className="mt-8 text-center text-gray-500">
+                    Больше товаров нет
                   </div>
                 )}
               </>
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">
                 <div className="text-gray-400 mb-4">
-                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                 </div>

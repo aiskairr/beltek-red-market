@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, Database, AlertCircle, CheckCircle, X, Eye, Package, Tags } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -24,6 +24,37 @@ const DualExcelUploader = () => {
   const [categoriesMessage, setCategoriesMessage] = useState('');
   const [categoriesMessageType, setCategoriesMessageType] = useState('');
   const [categoriesShowPreview, setCategoriesShowPreview] = useState(false);
+
+  useEffect(() => {
+    console.log('Categories - состояние изменилось:');
+    console.log('Categories - categoriesData:', categoriesData);
+    console.log('Categories - categoriesData.length:', categoriesData.length);
+    console.log('Categories - loading:', categoriesLoading);
+    console.log('Categories - showPreview:', categoriesShowPreview);
+  }, [categoriesData, categoriesLoading, categoriesShowPreview]);
+
+  useEffect(() => {
+    if (categoriesData.length > 0 && !categoriesLoading) {
+      console.log('Categories - useEffect: Принудительно устанавливаю showPreview в true');
+      setCategoriesShowPreview(true);
+    }
+  }, [categoriesData, categoriesLoading]);
+
+  // Функция очистки и нормализации данных
+  const sanitizeValue = (value) => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    
+    // Преобразуем в строку и очищаем
+    let cleanValue = value.toString().trim();
+    
+    // Удаляем специальные символы, которые могут вызывать проблемы с PostgreSQL
+    cleanValue = cleanValue.replace(/[\x00-\x1F\x7F]/g, ''); // Удаляем управляющие символы
+    cleanValue = cleanValue.replace(/["\\']/g, ''); // Удаляем кавычки
+    
+    return cleanValue;
+  };
 
   // Очистка состояния продуктов
   const clearProductsState = () => {
@@ -135,13 +166,13 @@ const DualExcelUploader = () => {
           
           fileHeaders.forEach((header, headerIndex) => {
             const cellValue = row[headerIndex];
-            rowObject[header.toString().trim()] = cellValue ? cellValue.toString().trim() : '';
+            rowObject[sanitizeValue(header)] = sanitizeValue(cellValue);
           });
 
           // Специальная обработка для колонки с категориями
           const possibleCategoryColumns = [
             'products', 'Категория', 'CATEGORY', 'Category', 'category',
-            'Продукты', 'PRODUCTS', 'Products', 'mini_category'
+            'Продукты', 'PRODUCTS', 'Products', 'mini_categories'
           ];
           
           let rawCategory = '';
@@ -151,18 +182,19 @@ const DualExcelUploader = () => {
               break;
             }
           }
+          
           if (rawCategory) {
-            const categoryParts = rawCategory.split('/').map(s => s.trim());
+            const categoryParts = rawCategory.split('/').map(s => sanitizeValue(s));
             rowObject['category'] = categoryParts[0] || '';
-            rowObject['mini_category'] = categoryParts[1] || '';
+            rowObject['mini_categories'] = categoryParts[1] || '';
           } else {
             rowObject['category'] = '';
-            rowObject['mini_category'] = '';
+            rowObject['mini_categories'] = '';
           }
 
           return { id: index + 1, ...rowObject };
         })
-        .filter(row => {
+        .filter((row) => {
           const values = Object.values(row).filter(val => val !== 'id');
           return values.some(value => value && value.toString().trim() !== '');
         });
@@ -188,7 +220,7 @@ const DualExcelUploader = () => {
     }
   };
 
-  // Обработка файла категорий
+  // Улучшенная обработка файла категорий
   const processCategoriesFile = async (file) => {
     setCategoriesLoading(true);
     setCategoriesMessage('');
@@ -199,10 +231,14 @@ const DualExcelUploader = () => {
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       
+      console.log('Categories - Листы в файле:', workbook.SheetNames);
+      
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      console.log('Categories - Сырые данные из Excel:', jsonData);
       
       if (jsonData.length === 0) {
         throw new Error('Файл пустой или не содержит данных');
@@ -213,35 +249,87 @@ const DualExcelUploader = () => {
       }
       
       const fileHeaders = jsonData[0].filter(header => header && header.toString().trim());
+      console.log('Categories - Заголовки:', fileHeaders);
       
       if (fileHeaders.length === 0) {
         throw new Error('Не найдены заголовки в файле');
       }
       
+      // Создаем новые заголовки для отображения
+      const displayHeaders = [...fileHeaders, 'category', 'mini_categories'];
+      
       const processedRows = jsonData.slice(1)
         .map((row, index) => {
           const rowObject = {};
           
+          // Заполняем данные из исходных колонок с очисткой
           fileHeaders.forEach((header, headerIndex) => {
             const cellValue = row[headerIndex];
-            rowObject[header.toString().trim()] = cellValue ? cellValue.toString().trim() : '';
+            rowObject[sanitizeValue(header)] = sanitizeValue(cellValue);
           });
+
+          // Ищем колонку с категориями (возможные названия)
+          const possibleCategoryColumns = [
+            'category', 'Category', 'CATEGORY', 'Категория', 'категория',
+            'categories', 'Categories', 'CATEGORIES', 'Категории', 'категории'
+          ];
+          
+          let categoryValue = '';
+          let foundCategoryColumn = '';
+          
+          // Ищем колонку с категориями
+          for (const colName of possibleCategoryColumns) {
+            if (rowObject[colName] && rowObject[colName].toString().trim()) {
+              categoryValue = sanitizeValue(rowObject[colName]);
+              foundCategoryColumn = colName;
+              break;
+            }
+          }
+          
+          console.log(`Categories - Строка ${index + 1}: найдена категория "${categoryValue}" в колонке "${foundCategoryColumn}"`);
+          
+          // Разделяем категорию и подкатегорию
+          if (categoryValue && categoryValue.includes('/')) {
+            const categoryParts = categoryValue.split('/').map(s => sanitizeValue(s)).filter(s => s);
+            rowObject['category'] = categoryParts[0] || '';
+            rowObject['mini_categories'] = categoryParts.slice(1).join('/') || '';
+            
+            console.log(`Categories - Разделено: category="${rowObject['category']}", mini_categories="${rowObject['mini_categories']}"`);
+          } else if (categoryValue) {
+            rowObject['category'] = categoryValue;
+            rowObject['mini_categories'] = '';
+            
+            console.log(`Categories - Без разделения: category="${rowObject['category']}"`);
+          } else {
+            rowObject['category'] = '';
+            rowObject['mini_categories'] = '';
+            
+            console.log(`Categories - Пустая категория`);
+          }
 
           return { id: index + 1, ...rowObject };
         })
-        .filter(row => {
+        .filter((row) => {
           const values = Object.values(row).filter(val => val !== 'id');
-          return values.some(value => value && value.toString().trim() !== '');
+          const hasData = values.some(value => value && value.toString().trim() !== '');
+          
+          console.log(`Categories - Строка ${row.id} проходит фильтр:`, hasData);
+          return hasData;
         });
+        
+      console.log('Categories - Обработанные строки:', processedRows);
         
       if (processedRows.length === 0) {
         throw new Error('После обработки не осталось валидных строк данных');
       }
       
-      setCategoriesHeaders(fileHeaders);
+      setCategoriesHeaders(displayHeaders);
       setCategoriesData(processedRows);
       setCategoriesShowPreview(true);
-      setCategoriesMessage(`Успешно обработано ${processedRows.length} строк из файла "${file.name}"`);
+      setCategoriesMessage(
+        `Успешно обработано ${processedRows.length} строк из файла "${file.name}". ` +
+        `Найдено ${processedRows.filter(row => row.category).length} записей с категориями.`
+      );
       setCategoriesMessageType('success');
       
     } catch (error) {
@@ -268,10 +356,26 @@ const DualExcelUploader = () => {
     setProductsMessageType('');
 
     try {
+      // Подготавливаем данные с дополнительной очисткой
       const dataToUpload = productsData.map(row => {
         const { id, ...rowData } = row;
-        return rowData;
+        
+        // Дополнительная очистка всех значений
+        const cleanedData = {};
+        Object.keys(rowData).forEach(key => {
+          const cleanKey = sanitizeValue(key);
+          const cleanValue = sanitizeValue(rowData[key]);
+          
+          // Проверяем, что ключ не пустой
+          if (cleanKey) {
+            cleanedData[cleanKey] = cleanValue;
+          }
+        });
+        
+        return cleanedData;
       });
+
+      console.log('Products - Подготовленные данные для загрузки:', dataToUpload);
 
       const { data: result, error } = await supabase
         .from('products')
@@ -310,10 +414,35 @@ const DualExcelUploader = () => {
     setCategoriesMessageType('');
 
     try {
+      // Подготавливаем данные с тщательной очисткой
       const dataToUpload = categoriesData.map(row => {
         const { id, ...rowData } = row;
-        return rowData;
+        
+        // Создаем новый объект с очищенными данными
+        const cleanedData = {};
+        
+        Object.keys(rowData).forEach(key => {
+          const cleanKey = sanitizeValue(key);
+          const cleanValue = sanitizeValue(rowData[key]);
+          
+          // Проверяем, что ключ не пустой
+          if (cleanKey) {
+            cleanedData[cleanKey] = cleanValue;
+          }
+        });
+        
+        // Убеждаемся, что category и mini_categories присутствуют
+        if (!cleanedData.hasOwnProperty('category')) {
+          cleanedData.category = '';
+        }
+        if (!cleanedData.hasOwnProperty('mini_categories')) {
+          cleanedData.mini_categories = '';
+        }
+        
+        return cleanedData;
       });
+
+      console.log('Categories - Данные для загрузки в Supabase:', dataToUpload);
 
       const { data: result, error } = await supabase
         .from('categories')
@@ -321,7 +450,13 @@ const DualExcelUploader = () => {
 
       if (error) throw error;
       
-      setCategoriesMessage(`Успешно загружено ${categoriesData.length} записей в таблицу categories`);
+      const categoriesCount = dataToUpload.filter(item => item.category).length;
+      const miniCategoriesCount = dataToUpload.filter(item => item.mini_categories).length;
+      
+      setCategoriesMessage(
+        `Успешно загружено ${categoriesData.length} записей в таблицу categories. ` +
+        `Из них ${categoriesCount} с основными категориями и ${miniCategoriesCount} с подкатегориями.`
+      );
       setCategoriesMessageType('success');
       
       setTimeout(() => {
@@ -463,7 +598,7 @@ const DualExcelUploader = () => {
               <button
                 onClick={onUpload}
                 disabled={uploading}
-                className={`inline-flex items-center px-4 py-2 ${iconColor.replace('text-', 'bg-').replace('-600', '-600')} text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 text-sm`}
+                className={`inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 text-sm`}
               >
                 {uploading ? (
                   <>
@@ -490,11 +625,15 @@ const DualExcelUploader = () => {
                       {headers.map((header, index) => (
                         <th
                           key={index}
-                          className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0 bg-gray-50"
+                          className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0 bg-gray-50 ${
+                            header === 'category' || header === 'mini_categories' ? 'bg-yellow-50 text-yellow-800' : ''
+                          }`}
                           title={header}
                         >
                           <div className="truncate max-w-24">
-                            {header}
+                            {header === 'category' ? '🏷️ Категория' : 
+                             header === 'mini_categories' ? '🏷️ Подкатегория' : 
+                             header}
                           </div>
                         </th>
                       ))}
@@ -509,7 +648,9 @@ const DualExcelUploader = () => {
                         {headers.map((header, cellIndex) => (
                           <td
                             key={cellIndex}
-                            className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 last:border-r-0"
+                            className={`px-3 py-2 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 ${
+                              header === 'category' || header === 'mini_categories' ? 'bg-yellow-50 font-medium' : ''
+                            }`}
                             title={row[header]}
                           >
                             <div className="truncate max-w-24">
@@ -544,6 +685,12 @@ const DualExcelUploader = () => {
         <p className="text-gray-600">
           Выберите тип данных для загрузки в соответствующую таблицу Supabase
         </p>
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Для категорий:</strong> Используйте формат "Категория/Подкатегория" в колонке category. 
+            Например: "Тест1/Тест2" будет разделено на category="Тест1" и mini_categories="Тест2"
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
