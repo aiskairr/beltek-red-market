@@ -253,7 +253,7 @@ const ProductDetail = () => {
             </TabsList>
             <TabsContent value="description" className="p-6 bg-white rounded-lg shadow mt-2">
               <h2 className="text-lg font-semibold mb-4">Описание {product.name}</h2>
-              <p className="mb-4">
+              <p className="mb-4" style={{ whiteSpace: 'pre-line' }}>
                 {product.description}
               </p>
             </TabsContent>
