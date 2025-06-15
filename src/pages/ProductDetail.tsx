@@ -22,40 +22,54 @@ const ProductDetail = () => {
   const { addItem, getCount } = useCart();
 
   useEffect(() => {
-    const fetchProductAndRelated = async () => {
-      // ✅ 1. Получаем товар по ID
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", productId)
-        .single();
+  const fetchProductAndRelated = async () => {
+    // ✅ 1. Получаем товар по ID
+    const { data: productData, error: productError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", productId)
+      .single();
 
-      if (productError || !productData) {
-        console.error("Ошибка загрузки товара:", productError?.message);
-        setProduct(null);
-        return;
-      }
+    if (productError || !productData) {
+      console.error("Ошибка загрузки товара:", productError?.message);
+      setProduct(null);
+      return;
+    }
 
-      setProduct(productData);
-
-      // ✅ 2. Получаем похожие товары по категории
-      const { data: relatedData, error: relatedError } = await supabase
-        .from("products")
-        .select("*")
-        .eq("category", productData.category)
-        .neq("id", productData.id)
-        .limit(4);
-
-      if (relatedError) {
-        console.error("Ошибка загрузки похожих товаров:", relatedError.message);
-      } else {
-        setRelatedProducts(relatedData || []);
-      }
+    // Парсим characteristics если это строка
+    const parsedProduct = {
+      ...productData,
+      characteristics: typeof productData.characteristics === 'string' 
+        ? JSON.parse(productData.characteristics) 
+        : productData.characteristics || []
     };
 
-    if (productId) fetchProductAndRelated();
-  }, [productId]);
+    setProduct(parsedProduct);
 
+    // ✅ 2. Получаем похожие товары по категории
+    const { data: relatedData, error: relatedError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("category", productData.category)
+      .neq("id", productData.id)
+      .limit(4);
+
+    if (relatedError) {
+      console.error("Ошибка загрузки похожих товаров:", relatedError.message);
+    } else {
+      // Парсим характеристики для похожих товаров тоже
+      const parsedRelated = (relatedData || []).map(item => ({
+        ...item,
+        characteristics: typeof item.characteristics === 'string' 
+          ? JSON.parse(item.characteristics) 
+          : item.characteristics || []
+      }));
+      setRelatedProducts(parsedRelated);
+    }
+  };
+
+  if (productId) fetchProductAndRelated();
+}, [productId]);
   const handleAddToCart = () => {
     if (product) {
       addItem(product, quantity);
@@ -258,30 +272,21 @@ const ProductDetail = () => {
               </p>
             </TabsContent>
             <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">
-              <h2 className="text-lg font-semibold mb-4">Технические характеристики</h2>
-              <div className="divide-y">
-                <div className="grid grid-cols-2 py-3">
-                  <div className="font-medium">Бренд</div>
-                  <div>{product.brand}</div>
-                </div>
-                <div className="grid grid-cols-2 py-3">
-                  <div className="font-medium">Модель</div>
-                  <div>{product.name.split(' ').slice(-1)[0]}</div>
-                </div>
-                <div className="grid grid-cols-2 py-3">
-                  <div className="font-medium">Гарантия</div>
-                  <div>12 месяцев</div>
-                </div>
-                <div className="grid grid-cols-2 py-3">
-                  <div className="font-medium">Страна производства</div>
-                  <div>Китай</div>
-                </div>
-                <div className="grid grid-cols-2 py-3">
-                  <div className="font-medium">Цвет</div>
-                  <div>Белый</div>
-                </div>
-              </div>
-            </TabsContent>
+  <h2 className="text-lg font-semibold mb-4">Технические характеристики</h2>
+  <div className="divide-y">
+   
+    
+    {product.characteristics && product.characteristics.map((char, index) => {
+      console.log(char)
+      return <div key={index} className="grid grid-cols-2 py-3">
+        <div className="font-medium">{char.name}</div>
+        <div>{char.value}</div>
+      </div>
+})}
+    
+   
+  </div>
+</TabsContent>
             <TabsContent value="reviews" className="p-6 bg-white rounded-lg shadow mt-2">
               <h2 className="text-lg font-semibold mb-4">Отзывы</h2>
               <div className="text-center py-8">

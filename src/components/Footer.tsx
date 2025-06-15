@@ -39,20 +39,21 @@ export const Footer = () => {
             <ul className="space-y-2">
               <li><Link to="/CreditPage" className="hover:text-belek-red transition-colors">Кредит и рассрочка</Link></li>
               <li><Link to="/FAQPage" className="hover:text-belek-red transition-colors">Вопросы и ответы</Link></li>
-              <li><Link to="/" className="hover:text-belek-red transition-colors">Политика конфиденциальности</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-xl font-bold mb-4">Контакты</h3>
             <ul className="space-y-2">
-              <li className="flex items-center"><Phone size={16} className="mr-2" /> <a href="tel:+996312123456" className="hover:text-belek-red transition-colors">+996 (312) 12-34-56</a></li>
-              <li className="flex items-center"><Mail size={16} className="mr-2" /> <a href="mailto:info@belektechnika.kg" className="hover:text-belek-red transition-colors">info@belektechnika.kg</a></li>
-              <li className="flex items-start"><MapPin size={16} className="mr-2 mt-1 flex-shrink-0" /> <span>г. Бишкек, ул. Киевская 95, ТЦ "Сары-Озон"</span></li>
-              <li className="flex items-center mt-4">
+              <li className="flex items-center"><Phone size={16} className="mr-2" />Беш Сары: <a href="tel:+996707030575" className="hover:text-belek-red transition-colors">+996 707 030 575</a></li>
+              <li className="flex items-center"><Phone size={16} className="mr-2" />Аю Гранд: <a href="tel:+996999160976" className="hover:text-belek-red transition-colors">+996 999 160 976</a></li>
+              <li className="flex items-center"><Mail size={16} className="mr-2" /> <a href="mailto:belektehnika@gmail.com" className="hover:text-belek-red transition-colors">belektehnika@gmail.com</a></li>
+              <li className="flex items-start"><MapPin size={16} className="mr-2 mt-1 flex-shrink-0" /> <span>Ошский рынок — ул. Бейшеналиевой, 42</span></li>
+              <li className="flex items-start"><MapPin size={16} className="mr-2 mt-1 flex-shrink-0" /> <span>АЮ GRAND — Валиханова 2 ст8, 1 этаж, 101/1</span></li>
+              {/* <li className="flex items-center mt-4">
                 <a href="https://facebook.com" className="mr-4 hover:text-belek-red transition-colors"><Facebook size={24} /></a>
                 <a href="https://instagram.com" className="hover:text-belek-red transition-colors"><Instagram size={24} /></a>
-              </li>
+              </li> */}
             </ul>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, Search, ShoppingCart, User, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Menu, Search, ShoppingCart, User, X, ChevronDown, ChevronUp, Phone, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/use-cart";
 import { supabase } from "@/lib/supabase";
@@ -148,9 +148,10 @@ export const Header = () => {
       <div className="bg-belek-black text-white px-4 py-2">
         <div className="container mx-auto flex justify-between items-center">
           <div className="text-sm hidden md:block">
-            <span>Тел: +996 555 123 456</span>
-            <span className="mx-4">|</span>
-            <span>Email: info@belek-tech.kg</span>
+            <li className="flex items-center"><Phone size={16} className="mr-2" />Беш Сары: <a href="tel:+996707030575" className="hover:text-belek-red transition-colors">+996 707 030 575</a></li>
+              <li className="flex items-center"><Phone size={16} className="mr-2" />Аю Гранд: <a href="tel:+996999160976" className="hover:text-belek-red transition-colors">+996 999 160 976</a></li>
+            
+         <li className="flex items-center">   <Mail/> {" "}<span>Email: belektehnika@gmail.com</span></li>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <Link

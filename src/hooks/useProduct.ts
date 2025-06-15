@@ -3,17 +3,21 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
 
+export interface Characteristic {
+  name: string;
+  value: string;
+}
+
 export interface Product {
   id: number;
   name: string;
   category: string;
-  mini_category?: string; // Добавлено поле для мини-категории
+  mini_category?: string;
   description: string;
   price: number;
   brand: string;
   image?: string;
-  stock?: number;
-  featured?: boolean;
+  characteristics?: Characteristic[];
   created_at: string;
 }
 
@@ -32,7 +36,13 @@ export const useProducts = () => {
       
       if (error) throw error;
       
-      setProducts(data || []);
+      // Обрабатываем characteristics - они могут быть строкой или уже объектом
+      const parsedProducts = (data || []).map(product => ({
+        ...product,
+        characteristics: product.characteristics || []
+      }));
+      
+      setProducts(parsedProducts);
     } catch (error: any) {
       toast({
         title: "Ошибка загрузки",
@@ -77,17 +87,23 @@ export const useProducts = () => {
         imageUrl = image;
       }
 
+      // Подготавливаем данные для отправки
+      const updateData = {
+        name: formData.name,
+        price: formData.price,
+        description: formData.description,
+        image: imageUrl,
+        brand: formData.brand,
+        category: formData.category,
+        mini_category: formData.mini_category || null,
+        characteristics: formData.characteristics || [] // Отправляем как есть - Supabase автоматически обработает JSONB
+      };
+
+      console.log('Данные для обновления:', updateData); // Для отладки
+
       const { data, error } = await supabase
         .from("products")
-        .update({
-          name: formData.name,
-          price: formData.price,
-          description: formData.description,
-          image: imageUrl,
-          brand: formData.brand,
-          category: formData.category,
-          mini_category: formData.mini_category || null, // Добавлено поле мини-категории
-        })
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
@@ -107,6 +123,7 @@ export const useProducts = () => {
 
       return data;
     } catch (error: any) {
+      console.error('Ошибка в onEdit:', error); // Для отладки
       toast({
         title: "Ошибка обновления товара",
         description: error.message,
@@ -118,16 +135,30 @@ export const useProducts = () => {
 
   const addProduct = async (productData: Omit<Product, 'id' | 'created_at'>) => {
     try {
+      // Подготавливаем данные для отправки
+      const insertData = {
+        name: productData.name,
+        category: productData.category,
+        mini_category: productData.mini_category || null,
+        brand: productData.brand,
+        description: productData.description,
+        price: productData.price,
+        image: productData.image,
+        characteristics: productData.characteristics || [] // Отправляем как есть - Supabase автоматически обработает JSONB
+      };
+
+      console.log('Данные для добавления:', insertData); // Для отладки
+
       const { data, error } = await supabase
         .from("products")
-        .insert([{
-          ...productData,
-          mini_category: productData.mini_category || null // Добавлено поле мини-категории
-        }])
+        .insert([insertData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Ошибка Supabase:', error); // Для отладки
+        throw error;
+      }
 
       setProducts(prev => [data, ...prev]);
       toast({
@@ -137,6 +168,7 @@ export const useProducts = () => {
       
       return data;
     } catch (error: any) {
+      console.error('Ошибка в addProduct:', error); // Для отладки
       toast({
         title: "Ошибка добавления",
         description: error.message,

@@ -10,6 +10,10 @@ export interface Product {
   image: string;
   category: string;
   description: string;
+   characteristics?: Array<{
+    name: string;
+    value: string;
+  }>;
 }
 
 interface CartItem extends Product {

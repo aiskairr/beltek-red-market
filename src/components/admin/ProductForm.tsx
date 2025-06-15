@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Category } from '../../hooks/useCategories';
 import { Brand } from "@/hooks/useBrands";
 import { useMemo } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
 interface ProductFormProps {
     categories: Category[];
     brands: Brand[]
     onSubmit: (data: any) => Promise<void>;
     onCancel: () => void;
+}
+
+interface Characteristic {
+    name: string;
+    value: string;
 }
 
 interface ProductFormData {
@@ -24,6 +30,7 @@ interface ProductFormData {
     description: string;
     image: File | null;
     brand: string;
+    characteristics: Characteristic[];
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, onSubmit, onCancel }) => {
@@ -36,8 +43,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
             category: "",
             mini_category: "",
             description: "",
-            image: null
+            image: null,
+            characteristics: []
         }
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "characteristics"
     });
 
     // Получаем выбранную категорию для фильтрации подкатегорий
@@ -79,18 +92,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                     .getPublicUrl(filePath).data.publicUrl;
             }
 
-            await onSubmit({
+            // Фильтруем пустые характеристики и приводим к правильному формату
+            const filteredCharacteristics = data.characteristics
+                .filter(char => char.name.trim() !== "" && char.value.trim() !== "")
+                .map(char => ({
+                    name: char.name.trim(),
+                    value: char.value.trim()
+                }));
+
+            const productData = {
                 name: data.name,
                 category: data.category,
-                mini_category: data.mini_category || null, // Если подкатегория не выбрана, отправляем null
+                mini_category: data.mini_category || null,
                 brand: data.brand,
                 description: data.description,
                 price: numericPrice,
                 image: imageUrl,
-            });
+                characteristics: filteredCharacteristics // Передаем как массив объектов
+            };
+
+            console.log('Отправляемые данные:', productData); // Для отладки
+
+            await onSubmit(productData);
 
             form.reset();
         } catch (error: any) {
+            console.error('Ошибка в handleSubmit:', error); // Для отладки
             toast({
                 title: "Ошибка",
                 description: error.message,
@@ -102,7 +129,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
     // Сбрасываем подкатегорию при смене категории
     const handleCategoryChange = (value: string, field: any) => {
         field.onChange(value);
-        form.setValue("mini_category", ""); // Сбрасываем подкатегорию
+        form.setValue("mini_category", "");
+    };
+
+    const addCharacteristic = () => {
+        append({ name: "", value: "" });
+    };
+
+    const removeCharacteristic = (index: number) => {
+        remove(index);
     };
 
     return (
@@ -263,6 +298,86 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                 )}
                             />
                         </div>
+
+                        {/* Характеристики */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <FormLabel className="text-base font-medium">
+                                    Характеристики (опционально)
+                                </FormLabel>
+                                <Button
+                                    type="button"
+                                    onClick={addCharacteristic}
+                                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                                    size="sm"
+                                >
+                                    <Plus size={16} />
+                                    Добавить характеристику
+                                </Button>
+                            </div>
+
+                            {fields.length > 0 && (
+                                <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+                                    {fields.map((field, index) => (
+                                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
+                                            <div className="md:col-span-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`characteristics.${index}.name`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-sm">Название</FormLabel>
+                                                            <FormControl>
+                                                                <Input 
+                                                                    placeholder="Например: Объем, Мощность..." 
+                                                                    {...field} 
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`characteristics.${index}.value`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-sm">Значение</FormLabel>
+                                                            <FormControl>
+                                                                <Input 
+                                                                    placeholder="Например: 300л, 1200Вт..." 
+                                                                    {...field} 
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Button
+                                                    type="button"
+                                                    onClick={() => removeCharacteristic(index)}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {fields.length === 0 && (
+                                <div className="text-center p-8 border rounded-lg bg-gray-50 text-gray-500">
+                                    <p>Характеристики не добавлены</p>
+                                    <p className="text-sm">Нажмите "Добавить характеристику" чтобы добавить</p>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex justify-end space-x-2">
                             <Button type="button" onClick={onCancel}>
                                 Отмена

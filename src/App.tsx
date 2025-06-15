@@ -19,6 +19,7 @@ import CreditPage from "./pages/CreditPage";
 import CompanyPage from "./pages/CompanyPages";
 import DeliveryPage from "./pages/DeliveryPage";
 import ContactsPage from "./pages/ContactsPage";
+import SearchResults from "./pages/SearchResult";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/contacts" element={<ContactsPage />} />
             <Route path="*" element={<NotFound />} />
             <Route path="login" element={<Login />} />
+            <Route path="/search" element={<SearchResults />} />
           </Routes>
         </BrowserRouter>
       </CartProvider>

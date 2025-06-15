@@ -19,11 +19,17 @@ import {
   DialogTitle, 
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Edit, Trash, Image as ImageIcon, X } from "lucide-react";
+import { Edit, Trash, Image as ImageIcon, X, Plus, Minus } from "lucide-react";
 import { Category } from '@/hooks/useCategories';
 import { Brand } from '@/hooks/useBrands';
 
-// Обновленный интерфейс Product с мини-категорией
+// Интерфейс для характеристик
+interface Characteristic {
+  name: string;
+  value: string;
+}
+
+// Обновленный интерфейс Product с характеристиками
 interface Product {
   id: number;
   name: string;
@@ -31,8 +37,9 @@ interface Product {
   price: number;
   image?: string;
   category: string;
-  mini_category?: string; // Добавлено поле для мини-категории
+  mini_category?: string;
   brand: string;
+  characteristics?: Characteristic[];
   category_id?: number;
   created_at?: string;
 }
@@ -58,6 +65,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     category: '',
     mini_category: ''
   });
+  const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
 
@@ -91,6 +99,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
       category: product.category,
       mini_category: product.mini_category || '',
     });
+    setCharacteristics(product.characteristics || []);
     setImagePreview(product.image || '');
     setIsModalOpen(true);
   };
@@ -99,6 +108,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     setIsModalOpen(false);
     setEditingProduct(null);
     setFormData({ name: '', description: '', price: '', image: '', brand: '', category: '', mini_category: '' });
+    setCharacteristics([]);
     setImagePreview('');
     setSelectedCategory(null);
   };
@@ -116,9 +126,31 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     }
   };
 
+  // Функции для работы с характеристиками
+  const addCharacteristic = () => {
+    setCharacteristics(prev => [...prev, { name: '', value: '' }]);
+  };
+
+  const removeCharacteristic = (index: number) => {
+    setCharacteristics(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateCharacteristic = (index: number, field: 'name' | 'value', value: string) => {
+    setCharacteristics(prev => 
+      prev.map((char, i) => 
+        i === index ? { ...char, [field]: value } : char
+      )
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct && onEdit) {
+      // Фильтруем пустые характеристики
+      const validCharacteristics = characteristics.filter(
+        char => char.name.trim() !== '' && char.value.trim() !== ''
+      );
+
       const updatedProduct: Product = {
         ...editingProduct,
         name: formData.name,
@@ -128,6 +160,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
         brand: formData.brand,
         category: formData.category,
         mini_category: formData.mini_category,
+        characteristics: validCharacteristics,
       };
       onEdit(editingProduct.id, updatedProduct);
       handleModalClose();
@@ -182,6 +215,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                 <TableHead>Название</TableHead>
                 <TableHead>Категория</TableHead>
                 <TableHead>Мини-категория</TableHead>
+                <TableHead>Характеристики</TableHead>
                 <TableHead>Описание</TableHead>
                 <TableHead>Цена</TableHead>
                 <TableHead>Дата создания</TableHead>
@@ -218,6 +252,24 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                       </span>
                     ) : (
                       <span className="text-gray-400 text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-xs">
+                    {product.characteristics && product.characteristics.length > 0 ? (
+                      <div className="space-y-1">
+                        {product.characteristics.slice(0, 2).map((char, index) => (
+                          <div key={index} className="text-xs">
+                            <span className="font-medium">{char.name}:</span> {char.value}
+                          </div>
+                        ))}
+                        {product.characteristics.length > 2 && (
+                          <div className="text-xs text-gray-500">
+                            +{product.characteristics.length - 2} еще
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Нет характеристик</span>
                     )}
                   </TableCell>
                   <TableCell className="max-w-xs">
@@ -272,7 +324,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
 
       {/* Модальное окно редактирования */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Редактировать товар</DialogTitle>
           </DialogHeader>
@@ -383,6 +435,59 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                 placeholder="Введите цену товара"
                 required
               />
+            </div>
+
+            {/* Секция характеристик */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Характеристики товара</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addCharacteristic}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Добавить характеристику
+                </Button>
+              </div>
+              
+              <div className="space-y-3 max-h-60 overflow-y-auto border rounded-lg p-3">
+                {characteristics.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Характеристики не добавлены</p>
+                    <p className="text-sm">Нажмите "Добавить характеристику" выше</p>
+                  </div>
+                ) : (
+                  characteristics.map((char, index) => (
+                    <div key={index} className="flex gap-2 items-center p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Название характеристики"
+                          value={char.name}
+                          onChange={(e) => updateCharacteristic(index, 'name', e.target.value)}
+                          className="mb-2"
+                        />
+                        <Input
+                          placeholder="Значение характеристики"
+                          value={char.value}
+                          onChange={(e) => updateCharacteristic(index, 'value', e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeCharacteristic(index)}
+                        className="text-red-500 hover:text-red-700 hover:border-red-300"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">

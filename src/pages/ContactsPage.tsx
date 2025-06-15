@@ -24,20 +24,19 @@ const ContactsPage = () => (
                         {
                             icon: Phone,
                             title: 'ТЕЛЕФОНЫ',
-                            info: ['+996 555 555 555', '+996 555 555 555'],
-                            subtitle: 'Круглосуточно'
+                            info: ['+996 707 030 575', '+996 999 160 976'],
                         },
                         {
                             icon: Mail,
                             title: 'EMAIL',
-                            info: ['info@company.ru', 'support@company.ru'],
+                            info: ['belektehnika@gmail.com'],
                             subtitle: 'Ответим в течение часа'
                         },
                         {
                             icon: MapPin,
                             title: 'АДРЕС',
                             info: ['Ошский рынок — ул. Бейшеналиевой, 42', 'АЮ GRAND — Валиханова 2 ст8, 1 этаж, 101/1'],
-                            subtitle: 'Пн-Пт: 9:00-18:00'
+                            subtitle: 'Вт-Вс: 9:00-19:00'
                         }
                     ].map((contact, index) => (
                         <div key={index} className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-lg border-2 border-gray-200 hover:border-red-600 hover:shadow-xl transition-all duration-300 group text-center">
@@ -66,10 +65,9 @@ const ContactsPage = () => (
                         <h3 className="text-2xl font-bold mb-6 text-black">РЕЖИМ РАБОТЫ</h3>
                         <div className="space-y-4">
                             {[
-                                { day: 'Понедельник - Пятница', time: '9:00 - 18:00' },
-                                { day: 'Суббота', time: '10:00 - 16:00' },
-                                { day: 'Воскресенье', time: 'Выходной' },
-                                { day: 'Горячая линия', time: '24/7' }
+                                { day: 'Вторник - Воскресенье', time: '9:00 - 19:00' },
+                                { day: 'Понедельник', time: 'Выходной' },
+                                { day: 'В праздничные дни ', time: 'сокращённый рабочий день' },
                             ].map((schedule, index) => (
                                 <div key={index} className="flex justify-between items-center border-b border-gray-200 pb-2">
                                     <span className="text-gray-700">{schedule.day}</span>

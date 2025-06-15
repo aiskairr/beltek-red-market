@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ProductCard } from '@/components/ProductCard';
@@ -23,12 +23,20 @@ interface Brand {
   name: string;
 }
 
+interface SubCategory {
+  name: string;
+  slug: string;
+  count: number;
+}
+
 const Category = () => {
   const { categorySlug = 'all', subCategorySlug } = useParams<{ categorySlug: string, subCategorySlug: string }>();
+  const navigate = useNavigate();
   
   // Добавляем недостающие состояния
   const [categories, setCategories] = useState<Category[]>([]);
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -107,6 +115,102 @@ const Category = () => {
       }
     }
   };
+
+ // Загрузка подкатегорий для текущей категории
+const fetchSubCategories = async () => {
+  if (categorySlug === 'all') {
+    setSubCategories([]);
+    return;
+  }
+
+  try {
+    // Сначала пытаемся загрузить подкатегории из таблицы subcategories (если есть)
+    let subcategoriesFromTable = [];
+    
+    try {
+      const { data: subcatData, error: subcatError } = await supabase
+        .from('subcategories')
+        .select('*')
+        .eq('category_slug', categorySlug)
+        .order('name');
+      
+      if (!subcatError && subcatData) {
+        subcategoriesFromTable = subcatData.map(subcat => ({
+          name: subcat.name,
+          slug: subcat.slug,
+          count: 0 // Инициализируем с 0, посчитаем позже
+        }));
+      }
+    } catch (err) {
+      console.log('Таблица subcategories не найдена или недоступна, используем товары');
+    }
+
+    // Теперь загружаем товары для подсчета количества в каждой подкатегории
+    let productQuery = supabase
+      .from('products')
+      .select('mini_category');
+
+    // Фильтрация по категории
+    const decodedSlug = decodeURIComponent(categorySlug);
+    if (currentCategory && currentCategory.name) {
+      productQuery = productQuery.eq('category', currentCategory.name);
+    } else {
+      productQuery = productQuery.eq('category', decodedSlug);
+    }
+
+    const { data: productData, error: productError } = await productQuery;
+    
+    if (productError) throw productError;
+
+    // Считаем количество товаров в каждой подкатегории
+    const productCounts = {};
+    if (productData && productData.length > 0) {
+      productData.forEach(product => {
+        if (product.mini_category) {
+          productCounts[product.mini_category] = (productCounts[product.mini_category] || 0) + 1;
+        }
+      });
+    }
+
+    let finalSubCategories = [];
+
+    if (subcategoriesFromTable.length > 0) {
+      // Если есть подкатегории из таблицы, используем их и добавляем количество
+      finalSubCategories = subcategoriesFromTable.map(subcat => ({
+        ...subcat,
+        count: productCounts[subcat.name] || 0
+      }));
+
+      // Добавляем подкатегории из товаров, которых нет в таблице subcategories
+      Object.keys(productCounts).forEach(miniCategoryName => {
+        const exists = subcategoriesFromTable.some(subcat => subcat.name === miniCategoryName);
+        if (!exists) {
+          finalSubCategories.push({
+            name: miniCategoryName,
+            slug: miniCategoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+            count: productCounts[miniCategoryName]
+          });
+        }
+      });
+    } else {
+      // Если нет таблицы subcategories, создаем подкатегории только из товаров
+      finalSubCategories = Object.entries(productCounts).map(([name, count]) => ({
+        name,
+        slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+        count: count as number
+      }));
+    }
+
+    // Сортируем по названию
+    finalSubCategories.sort((a, b) => a.name.localeCompare(b.name));
+
+    setSubCategories(finalSubCategories);
+
+  } catch (err) {
+    console.error('Ошибка загрузки подкатегорий:', err);
+    setSubCategories([]);
+  }
+};
 
   // Получение доступных брендов для категории
   const fetchAvailableBrands = async () => {
@@ -340,10 +444,17 @@ const Category = () => {
     fetchCategories();
   }, [categorySlug]);
 
+  // Загрузка подкатегорий после загрузки категории
+  useEffect(() => {
+    if (currentCategory !== null) {
+      fetchSubCategories();
+    }
+  }, [currentCategory, categorySlug]);
+
   // Загрузка товаров после загрузки категории
   useEffect(() => {
     if (currentCategory !== null || categorySlug === 'all') {
-      // Сбрасываем фильтры при смене категории
+      // Сбрасываем фильтры при смене категории/подкатегории
       setProducts([]);
       setCurrentPage(0);
       setHasMore(true);
@@ -413,6 +524,16 @@ const Category = () => {
     setSortBy('featured');
   };
 
+  // Функция для перехода к подкатегории
+  const handleSubCategoryClick = (subCatSlug: string) => {
+    navigate(`/category/${categorySlug}/${subCatSlug}`);
+  };
+
+  // Функция для возврата к категории (убрать подкатегорию)
+  const handleBackToCategory = () => {
+    navigate(`/category/${categorySlug}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -458,14 +579,65 @@ const Category = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
+        {/* Хлебные крошки */}
+        <nav className="mb-4 text-sm">
+          <div className="flex items-center space-x-2 text-gray-600">
+            <Link to="/" className="hover:text-blue-600">Главная</Link>
+            <span>/</span>
+            <Link to={`/category/${categorySlug}`} className="hover:text-blue-600">
+              {currentCategory?.name || decodeURIComponent(categorySlug)}
+            </Link>
+            {subCategorySlug && (
+              <>
+                <span>/</span>
+                <span className="text-gray-900">{subCategorySlug}</span>
+              </>
+            )}
+          </div>
+        </nav>
+
         <div className="mb-6">
           <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
             <div className="absolute inset-0 bg-opacity-90 flex items-center justify-center" style={{ background: "rgb(227 6 19 / var(--tw-bg-opacity, 1))" }}>
               <h1 className="text-3xl font-bold text-white text-center px-4">
-                {currentCategory?.name || decodeURIComponent(categorySlug)}
+                {subCategorySlug ? subCategorySlug : (currentCategory?.name || decodeURIComponent(categorySlug))}
               </h1>
             </div>
           </div>
+          
+          {/* Подкатегории */}
+          {!subCategorySlug && subCategories.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-lg font-medium mb-4">Подкатегории</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {subCategories.map((subCat) => (
+                  <button
+                    key={subCat.slug}
+                    onClick={() => handleSubCategoryClick(subCat.name)}
+                    className="bg-white border border-gray-200 rounded-lg p-3 text-center hover:border-blue-500 hover:shadow-md transition-all"
+                  >
+                    <div className="text-sm font-medium text-gray-900 mb-1">{subCat.name}</div>
+                    <div className="text-xs text-gray-500">{subCat.count} товаров</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Кнопка возврата к категории */}
+          {subCategorySlug && (
+            <div className="mb-4">
+              <button
+                onClick={handleBackToCategory}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Назад к {currentCategory?.name}
+              </button>
+            </div>
+          )}
           
           <p className="text-gray-600">
             Показано товаров: {products.length} из {totalCount}
