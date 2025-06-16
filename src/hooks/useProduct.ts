@@ -159,7 +159,7 @@ export const useProducts = () => {
         price: productData.price,
         image: productData.image || "", // Главное изображение (для обратной совместимости)
         images: productData.images || [], // Массив всех изображений
-        characteristics: productData.characteristics || []
+        templates: productData.templates || []
       };
 
       console.log('Данные для добавления:', insertData);

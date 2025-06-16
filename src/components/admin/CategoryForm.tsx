@@ -1,4 +1,4 @@
-// components/admin/CategoryForm.tsx (обновленная версия с подкатегориями)
+// components/admin/CategoryForm.tsx (обновленная версия с подкатегориями и шаблонами)
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [subcategoryInput, setSubcategoryInput] = useState("");
   const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [templateInput, setTemplateInput] = useState("");
+  const [templates, setTemplates] = useState<string[]>([]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,6 +82,33 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
     }
   };
 
+  const addTemplate = () => {
+    const trimmedTemplate = templateInput.trim();
+    if (!trimmedTemplate) {
+      alert('Введите шаблон');
+      return;
+    }
+    
+    if (templates.includes(trimmedTemplate)) {
+      alert('Такой шаблон уже добавлен');
+      return;
+    }
+
+    setTemplates(prev => [...prev, trimmedTemplate]);
+    setTemplateInput("");
+  };
+
+  const removeTemplate = (indexToRemove: number) => {
+    setTemplates(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleTemplateKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading) {
+      e.preventDefault();
+      addTemplate();
+    }
+  };
+
   const handleSubmit = async () => {
     if (!categoryName.trim()) {
       alert('Введите название категории');
@@ -90,7 +119,8 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
       await onSubmit({
         category: categoryName.trim(),
         image: selectedImage,
-        mini_categories: subcategories
+        mini_categories: subcategories,
+        templates: templates
       });
       
       // Сбрасываем форму после успешного добавления
@@ -99,6 +129,8 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
       setImagePreview(null);
       setSubcategoryInput("");
       setSubcategories([]);
+      setTemplateInput("");
+      setTemplates([]);
       const input = document.getElementById('category-image') as HTMLInputElement;
       if (input) input.value = '';
     } catch (error) {
@@ -173,6 +205,57 @@ export const CategoryForm = ({ onSubmit, loading = false }: CategoryFormProps) =
                     <Button
                       type="button"
                       onClick={() => removeSubcategory(index)}
+                      disabled={loading}
+                      className="h-4 w-4 p-0 bg-transparent hover:bg-red-100 text-red-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Шаблоны */}
+        <div>
+          <Label htmlFor="template-input" className="text-sm font-medium">
+            Шаблоны (опционально)
+          </Label>
+          <div className="mt-1 flex gap-2">
+            <Input
+              id="template-input"
+              placeholder="Введите шаблон"
+              value={templateInput}
+              onChange={(e) => setTemplateInput(e.target.value)}
+              onKeyPress={handleTemplateKeyPress}
+              disabled={loading}
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              onClick={addTemplate}
+              disabled={!templateInput.trim() || loading}
+              className="bg-belek-red hover:bg-red-700"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Отображение добавленных шаблонов */}
+          {templates.length > 0 && (
+            <div className="mt-3">
+              <p className="text-sm font-medium mb-2">Добавленные шаблоны:</p>
+              <div className="flex flex-wrap gap-2">
+                {templates.map((template, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1 bg-blue-100 px-3 py-1 rounded-full text-sm"
+                  >
+                    <span>{template}</span>
+                    <Button
+                      type="button"
+                      onClick={() => removeTemplate(index)}
                       disabled={loading}
                       className="h-4 w-4 p-0 bg-transparent hover:bg-red-100 text-red-600"
                     >

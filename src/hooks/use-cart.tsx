@@ -7,11 +7,11 @@ export interface Product {
   name: string;
   brand: string;
   price: number;
-  image: string;
+  images: string;
   category: string;
   description: string;
-   characteristics?: Array<{
-    name: string;
+   templates?: Array<{
+    template: string;
     value: string;
   }>;
 }

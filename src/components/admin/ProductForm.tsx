@@ -35,6 +35,7 @@ interface ProductFormData {
     description: string;
     brand: string;
     characteristics: Characteristic[];
+    templates: { template: string; value: string }[];
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, onSubmit, onCancel }) => {
@@ -50,13 +51,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
             category: "",
             mini_category: "",
             description: "",
-            characteristics: []
+            characteristics: [],
+            templates: []
         }
     });
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "characteristics"
+    });
+
+    const { fields: templateFields, append: appendTemplate, remove: removeTemplate } = useFieldArray({
+        control: form.control,
+        name: "templates"
     });
 
     // Получаем выбранную категорию для фильтрации подкатегорий
@@ -68,6 +75,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
         
         const category = categories.find(cat => cat.category === selectedCategory);
         return category?.mini_categories || [];
+    }, [selectedCategory, categories]);
+
+    // Получаем шаблоны для выбранной категории
+    const availableTemplates = useMemo(() => {
+        if (!selectedCategory) return [];
+        
+        const category = categories.find(cat => cat.category === selectedCategory);
+        return category?.templates || [];
     }, [selectedCategory, categories]);
 
     // Обработка добавления изображений
@@ -149,6 +164,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                     value: char.value.trim()
                 }));
 
+            // Фильтруем пустые шаблоны и приводим к правильному формату
+            const filteredTemplates = data.templates
+                .filter(template => template.template.trim() !== "" && template.value.trim() !== "")
+                .map(template => ({
+                    template: template.template.trim(),
+                    value: template.value.trim()
+                }));
+
             const productData = {
                 name: data.name,
                 category: data.category,
@@ -158,7 +181,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                 price: numericPrice,
                 images: imageUrls, // Массив URL изображений
                 image: imageUrls[0] || "", // Основное изображение для обратной совместимости
-                characteristics: filteredCharacteristics
+                characteristics: filteredCharacteristics,
+                templates: filteredTemplates
             };
 
             console.log('Отправляемые данные:', productData);
@@ -181,10 +205,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
         }
     };
 
-    // Сбрасываем подкатегорию при смене категории
+    // Сбрасываем подкатегорию и шаблоны при смене категории
     const handleCategoryChange = (value: string, field: any) => {
         field.onChange(value);
         form.setValue("mini_category", "");
+        form.setValue("templates", []);
     };
 
     const addCharacteristic = () => {
@@ -193,6 +218,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
 
     const removeCharacteristic = (index: number) => {
         remove(index);
+    };
+
+    const addTemplate = () => {
+        appendTemplate({ template: "", value: "" });
     };
 
     // Очистка URL при размонтировании компонента
@@ -342,6 +371,100 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                     </FormItem>
                                 )}
                             />
+
+                            {/* Шаблоны */}
+                            <div className="md:col-span-2 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <FormLabel className="text-base font-medium">
+                                        Шаблоны (опционально)
+                                    </FormLabel>
+                                    <Button
+                                        type="button"
+                                        onClick={addTemplate}
+                                        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                                        size="sm"
+                                        disabled={!selectedCategory || availableTemplates.length === 0}
+                                    >
+                                        <Plus size={16} />
+                                        Добавить шаблон
+                                    </Button>
+                                </div>
+
+                                {templateFields.length > 0 && (
+                                    <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+                                        {templateFields.map((field, index) => (
+                                            <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
+                                                <div className="md:col-span-2">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`templates.${index}.template`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-sm">Шаблон</FormLabel>
+                                                                <FormControl>
+                                                                    <select
+                                                                        {...field}
+                                                                        className="w-full border px-3 py-2 rounded-md text-sm"
+                                                                    >
+                                                                        <option value="">Выберите шаблон</option>
+                                                                        {availableTemplates.map((template, tIndex) => (
+                                                                            <option key={tIndex} value={template}>
+                                                                                {template}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`templates.${index}.value`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-sm">Значение</FormLabel>
+                                                                <FormControl>
+                                                                    <Input 
+                                                                        placeholder="Введите значение..." 
+                                                                        {...field} 
+                                                                    />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => removeTemplate(index)}
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {templateFields.length === 0 && (
+                                    <div className="text-center p-8 border rounded-lg bg-gray-50 text-gray-500">
+                                        <p>Шаблоны не добавлены</p>
+                                        <p className="text-sm">
+                                            {!selectedCategory 
+                                                ? "Выберите категорию чтобы добавить шаблоны"
+                                                : availableTemplates.length === 0 
+                                                ? "Для этой категории нет доступных шаблонов"
+                                                : "Нажмите \"Добавить шаблон\" чтобы добавить"
+                                            }
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Изображения */}
@@ -402,85 +525,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                     <ImageIcon size={48} className="mx-auto mb-2 opacity-50" />
                                     <p>Изображения не добавлены</p>
                                     <p className="text-sm">Нажмите "Добавить изображения" чтобы загрузить</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Характеристики */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <FormLabel className="text-base font-medium">
-                                    Характеристики (опционально)
-                                </FormLabel>
-                                <Button
-                                    type="button"
-                                    onClick={addCharacteristic}
-                                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                                    size="sm"
-                                >
-                                    <Plus size={16} />
-                                    Добавить характеристику
-                                </Button>
-                            </div>
-
-                            {fields.length > 0 && (
-                                <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
-                                    {fields.map((field, index) => (
-                                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-                                            <div className="md:col-span-2">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`characteristics.${index}.name`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel className="text-sm">Название</FormLabel>
-                                                            <FormControl>
-                                                                <Input 
-                                                                    placeholder="Например: Объем, Мощность..." 
-                                                                    {...field} 
-                                                                />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`characteristics.${index}.value`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel className="text-sm">Значение</FormLabel>
-                                                            <FormControl>
-                                                                <Input 
-                                                                    placeholder="Например: 300л, 1200Вт..." 
-                                                                    {...field} 
-                                                                />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                            <div>
-                                                <Button
-                                                    type="button"
-                                                    onClick={() => removeCharacteristic(index)}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {fields.length === 0 && (
-                                <div className="text-center p-8 border rounded-lg bg-gray-50 text-gray-500">
-                                    <p>Характеристики не добавлены</p>
-                                    <p className="text-sm">Нажмите "Добавить характеристику" чтобы добавить</p>
                                 </div>
                             )}
                         </div>

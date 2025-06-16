@@ -36,11 +36,11 @@ const ProductDetail = () => {
       // Парсим characteristics и images если это строки
       const parsedProduct = {
         ...productData,
-        characteristics: typeof productData.characteristics === 'string' 
-          ? JSON.parse(productData.characteristics) 
+        characteristics: typeof productData.characteristics === 'string'
+          ? JSON.parse(productData.characteristics)
           : productData.characteristics || [],
-        images: typeof productData.images === 'string' 
-          ? JSON.parse(productData.images) 
+        images: typeof productData.images === 'string'
+          ? JSON.parse(productData.images)
           : productData.images || []
       };
 
@@ -60,11 +60,11 @@ const ProductDetail = () => {
         // Парсим характеристики для похожих товаров тоже
         const parsedRelated = (relatedData || []).map(item => ({
           ...item,
-          characteristics: typeof item.characteristics === 'string' 
-            ? JSON.parse(item.characteristics) 
+          characteristics: typeof item.characteristics === 'string'
+            ? JSON.parse(item.characteristics)
             : item.characteristics || [],
-          images: typeof item.images === 'string' 
-            ? JSON.parse(item.images) 
+          images: typeof item.images === 'string'
+            ? JSON.parse(item.images)
             : item.images || []
         }));
         setRelatedProducts(parsedRelated);
@@ -83,14 +83,14 @@ const ProductDetail = () => {
   // Получаем все изображения товара
   const getProductImages = () => {
     if (!product) return [];
-    
+
     // Если есть массив images, используем его
     if (product.images && Array.isArray(product.images) && product.images.length > 0) {
       return product.images;
     }
-    
+
     // Иначе используем основное изображение или изображение по умолчанию
-    return [product.image || getDefaultImage(product.category)];
+    return [product.images[0] || getDefaultImage(product.category)];
   };
 
   // Get appropriate image based on category
@@ -122,13 +122,13 @@ const ProductDetail = () => {
   const productImages = getProductImages();
 
   const nextImage = () => {
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === productImages.length - 1 ? 0 : prev + 1
     );
   };
 
   const prevImage = () => {
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === 0 ? productImages.length - 1 : prev - 1
     );
   };
@@ -176,7 +176,7 @@ const ProductDetail = () => {
                     alt={`${product.name} - изображение ${selectedImageIndex + 1}`}
                     className="max-w-full max-h-[400px] object-contain"
                   />
-                  
+
                   {/* Navigation arrows - показываем только если больше одного изображения */}
                   {productImages.length > 1 && (
                     <>
@@ -194,7 +194,7 @@ const ProductDetail = () => {
                       </button>
                     </>
                   )}
-                  
+
                   {/* Image counter */}
                   {productImages.length > 1 && (
                     <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm">
@@ -210,11 +210,10 @@ const ProductDetail = () => {
                       <button
                         key={index}
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`flex-shrink-0 w-20 h-20 bg-belek-gray rounded-lg p-2 border-2 transition-all duration-200 ${
-                          selectedImageIndex === index 
-                            ? 'border-belek-red' 
+                        className={`flex-shrink-0 w-20 h-20 bg-belek-gray rounded-lg p-2 border-2 transition-all duration-200 ${selectedImageIndex === index
+                            ? 'border-belek-red'
                             : 'border-transparent hover:border-gray-300'
-                        }`}
+                          }`}
                       >
                         <img
                           src={image}
@@ -350,18 +349,19 @@ const ProductDetail = () => {
               <p className="mb-4" style={{ whiteSpace: 'pre-line' }}>
                 {product.description}
               </p>
-            </TabsContent>
-            <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">
-              <h2 className="text-lg font-semibold mb-4">Технические характеристики</h2>
-              <div className="divide-y">
-                {product.characteristics && product.characteristics.map((char, index) => {
-                  console.log(char)
-                  return <div key={index} className="grid grid-cols-2 py-3">
-                    <div className="font-medium">{char.name}</div>
-                    <div>{char.value}</div>
+
+              {/* Отображение templates */}
+              {product.templates && product.templates.length > 0 && (
+                <div>
+                  <div className="space-y-2">
+                    {product.templates.map((template, index) => (
+                      <div key={index} className="">
+                        <span className="font-medium">{template.template}:</span> {template.value}
+                      </div>
+                    ))}
                   </div>
-                })}
-              </div>
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="reviews" className="p-6 bg-white rounded-lg shadow mt-2">
               <h2 className="text-lg font-semibold mb-4">Отзывы</h2>

@@ -9,12 +9,14 @@ export interface Category {
   image?: string;
   mini_categories?: string[];
   created_at?: string;
+  templates: any;
 }
 
 export interface CategoryFormData {
   category: string;
   image: File | null;
   mini_categories: string[];
+  templates: string[];
 }
 
 export const useCategories = () => {
@@ -29,9 +31,9 @@ export const useCategories = () => {
         .from("categories")
         .select("*")
         .order("category", { ascending: true });
-      
+
       if (error) throw error;
-      
+
       setCategories(data || []);
     } catch (error: any) {
       toast({
@@ -75,10 +77,11 @@ export const useCategories = () => {
 
       const { data, error } = await supabase
         .from("categories")
-        .insert([{ 
+        .insert([{
           category: formData.category,
           image: imageUrl,
-          mini_categories: formData.mini_categories
+          mini_categories: formData.mini_categories,
+          templates: formData.templates
         }])
         .select()
         .single();
@@ -90,7 +93,7 @@ export const useCategories = () => {
         title: "Категория добавлена",
         description: `Категория "${formData.category}" успешно добавлена`,
       });
-      
+
       return data;
     } catch (error: any) {
       toast({
@@ -212,13 +215,13 @@ export const useCategories = () => {
   const bulkImportCategories = async (categoriesData: Omit<Category, 'id' | 'created_at'>[]) => {
     try {
       setLoading(true);
-      
+
       // Проверяем на дубликаты с существующими категориями
       const existingCategories = categories.map(cat => cat.category.toLowerCase());
-      const duplicates = categoriesData.filter(cat => 
+      const duplicates = categoriesData.filter(cat =>
         existingCategories.includes(cat.category.toLowerCase())
       );
-      
+
       if (duplicates.length > 0) {
         const duplicateNames = duplicates.map(cat => cat.category).join(', ');
         throw new Error(`Найдены дубликаты категорий: ${duplicateNames}`);
@@ -240,7 +243,7 @@ export const useCategories = () => {
       if (error) throw error;
 
       // Обновляем локальное состояние
-      setCategories(prev => 
+      setCategories(prev =>
         [...prev, ...data].sort((a, b) => a.category.localeCompare(b.category))
       );
 
