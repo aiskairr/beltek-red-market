@@ -349,7 +349,8 @@ const ProductDetail = () => {
               <p className="mb-4" style={{ whiteSpace: 'pre-line' }}>
                 {product.description}
               </p>
-
+            </TabsContent>
+             <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">
               {/* Отображение templates */}
               {product.templates && product.templates.length > 0 && (
                 <div>
