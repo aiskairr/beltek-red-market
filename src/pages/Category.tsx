@@ -648,40 +648,40 @@ const fetchSubCategories = async () => {
           {/* Фильтры */}
           <div className="lg:w-1/4 hidden lg:block">
             <div className="bg-white rounded-lg shadow divide-y">
-              <div className="p-4">
-                <h3 className="font-medium mb-4">Цена</h3>
-                <div className="px-2">
-                  <Slider
-                    defaultValue={[minPrice, maxPrice]}
-                    min={minPrice}
-                    max={maxPrice}
-                    step={1000}
-                    value={tempPriceRange}
-                    onValueChange={handlePriceChange}
-                    className="mb-4"
-                  />
-                  <div className="flex justify-between text-sm mb-3">
-                    <span>{tempPriceRange[0].toLocaleString()} с</span>
-                    <span>{tempPriceRange[1].toLocaleString()} с</span>
-                  </div>
-                  
-                  {/* Показываем диапазон доступных цен */}
-                  <div className="flex justify-between text-xs text-gray-500 mb-3">
-                    <span>Мин: {minPrice.toLocaleString()} с</span>
-                    <span>Макс: {maxPrice.toLocaleString()} с</span>
-                  </div>
-                  
-                  {/* Показываем кнопку применения только если есть изменения */}
-                  {(tempPriceRange[0] !== priceRange[0] || tempPriceRange[1] !== priceRange[1]) && (
-                    <button
-                      onClick={applyPriceFilterNow}
-                      className="w-full bg-blue-600 text-white text-sm py-2 px-3 rounded hover:bg-blue-700 transition-colors"
-                    >
-                      Применить
-                    </button>
-                  )}
-                </div>
-              </div>
+            <div className="p-4">
+  <h3 className="font-medium mb-4">Цена</h3>
+  <div className="px-2">
+    <Slider
+  defaultValue={[minPrice, maxPrice]}
+  value={tempPriceRange}
+  onValueChange={handlePriceChange}
+  min={minPrice}
+  max={maxPrice}
+  step={1000}
+  className="mb-4"
+/>
+    <div className="flex justify-between text-sm mb-3">
+      <span>{tempPriceRange[0].toLocaleString()} с</span>
+      <span>{tempPriceRange[1].toLocaleString()} с</span>
+    </div>
+    
+    {/* Показываем диапазон доступных цен */}
+    <div className="flex justify-between text-xs text-gray-500 mb-3">
+      <span>Мин: {minPrice.toLocaleString()} с</span>
+      <span>Макс: {maxPrice.toLocaleString()} с</span>
+    </div>
+    
+    {/* Показываем кнопку применения только если есть изменения */}
+    {(tempPriceRange[0] !== priceRange[0] || tempPriceRange[1] !== priceRange[1]) && (
+      <button
+        onClick={applyPriceFilterNow}
+        className="w-full bg-blue-600 text-white text-sm py-2 px-3 rounded hover:bg-blue-700 transition-colors"
+      >
+        Применить
+      </button>
+    )}
+  </div>
+</div>
 
               <div className="p-4">
                 <h3 className="font-medium mb-4">Бренд</h3>

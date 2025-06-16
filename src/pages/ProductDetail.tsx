@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ShoppingCart, Heart, ArrowLeft, Check, Minus, Plus, Truck } from 'lucide-react';
+import { ShoppingCart, Heart, ArrowLeft, Check, Minus, Plus, Truck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,73 +10,91 @@ import { useCart, Product } from '@/hooks/use-cart';
 import { ProductCard } from '@/components/ProductCard';
 import { supabase } from '@/lib/supabase';
 
-// Mock all products
-
-
 const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [quantity, setQuantity] = useState(1);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { addItem, getCount } = useCart();
 
   useEffect(() => {
-  const fetchProductAndRelated = async () => {
-    // ✅ 1. Получаем товар по ID
-    const { data: productData, error: productError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", productId)
-      .single();
+    const fetchProductAndRelated = async () => {
+      // ✅ 1. Получаем товар по ID
+      const { data: productData, error: productError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", productId)
+        .single();
 
-    if (productError || !productData) {
-      console.error("Ошибка загрузки товара:", productError?.message);
-      setProduct(null);
-      return;
-    }
+      if (productError || !productData) {
+        console.error("Ошибка загрузки товара:", productError?.message);
+        setProduct(null);
+        return;
+      }
 
-    // Парсим characteristics если это строка
-    const parsedProduct = {
-      ...productData,
-      characteristics: typeof productData.characteristics === 'string' 
-        ? JSON.parse(productData.characteristics) 
-        : productData.characteristics || []
+      // Парсим characteristics и images если это строки
+      const parsedProduct = {
+        ...productData,
+        characteristics: typeof productData.characteristics === 'string' 
+          ? JSON.parse(productData.characteristics) 
+          : productData.characteristics || [],
+        images: typeof productData.images === 'string' 
+          ? JSON.parse(productData.images) 
+          : productData.images || []
+      };
+
+      setProduct(parsedProduct);
+
+      // ✅ 2. Получаем похожие товары по категории
+      const { data: relatedData, error: relatedError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("category", productData.category)
+        .neq("id", productData.id)
+        .limit(4);
+
+      if (relatedError) {
+        console.error("Ошибка загрузки похожих товаров:", relatedError.message);
+      } else {
+        // Парсим характеристики для похожих товаров тоже
+        const parsedRelated = (relatedData || []).map(item => ({
+          ...item,
+          characteristics: typeof item.characteristics === 'string' 
+            ? JSON.parse(item.characteristics) 
+            : item.characteristics || [],
+          images: typeof item.images === 'string' 
+            ? JSON.parse(item.images) 
+            : item.images || []
+        }));
+        setRelatedProducts(parsedRelated);
+      }
     };
 
-    setProduct(parsedProduct);
+    if (productId) fetchProductAndRelated();
+  }, [productId]);
 
-    // ✅ 2. Получаем похожие товары по категории
-    const { data: relatedData, error: relatedError } = await supabase
-      .from("products")
-      .select("*")
-      .eq("category", productData.category)
-      .neq("id", productData.id)
-      .limit(4);
-
-    if (relatedError) {
-      console.error("Ошибка загрузки похожих товаров:", relatedError.message);
-    } else {
-      // Парсим характеристики для похожих товаров тоже
-      const parsedRelated = (relatedData || []).map(item => ({
-        ...item,
-        characteristics: typeof item.characteristics === 'string' 
-          ? JSON.parse(item.characteristics) 
-          : item.characteristics || []
-      }));
-      setRelatedProducts(parsedRelated);
-    }
-  };
-
-  if (productId) fetchProductAndRelated();
-}, [productId]);
   const handleAddToCart = () => {
     if (product) {
       addItem(product, quantity);
     }
   };
 
+  // Получаем все изображения товара
+  const getProductImages = () => {
+    if (!product) return [];
+    
+    // Если есть массив images, используем его
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      return product.images;
+    }
+    
+    // Иначе используем основное изображение или изображение по умолчанию
+    return [product.image || getDefaultImage(product.category)];
+  };
+
   // Get appropriate image based on category
-  const getProductImage = (category?: string) => {
+  const getDefaultImage = (category?: string) => {
     if (!category) return '/appliance.jpg';
 
     switch (category) {
@@ -100,6 +117,20 @@ const ProductDetail = () => {
       default:
         return '/appliance.jpg';
     }
+  };
+
+  const productImages = getProductImages();
+
+  const nextImage = () => {
+    setSelectedImageIndex((prev) => 
+      prev === productImages.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const prevImage = () => {
+    setSelectedImageIndex((prev) => 
+      prev === 0 ? productImages.length - 1 : prev - 1
+    );
   };
 
   if (!product) {
@@ -136,13 +167,64 @@ const ProductDetail = () => {
           {/* Product Info */}
           <div className="bg-white rounded-lg shadow overflow-hidden mb-12">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
-              {/* Product Image */}
-              <div className="flex justify-center items-center bg-belek-gray rounded-lg p-8">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="max-w-full max-h-[400px] object-contain"
-                />
+              {/* Product Image Gallery */}
+              <div className="space-y-4">
+                {/* Main Image */}
+                <div className="relative bg-belek-gray rounded-lg p-8 flex justify-center items-center">
+                  <img
+                    src={productImages[selectedImageIndex]}
+                    alt={`${product.name} - изображение ${selectedImageIndex + 1}`}
+                    className="max-w-full max-h-[400px] object-contain"
+                  />
+                  
+                  {/* Navigation arrows - показываем только если больше одного изображения */}
+                  {productImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={prevImage}
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md transition-all duration-200"
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button
+                        onClick={nextImage}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md transition-all duration-200"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </>
+                  )}
+                  
+                  {/* Image counter */}
+                  {productImages.length > 1 && (
+                    <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm">
+                      {selectedImageIndex + 1} / {productImages.length}
+                    </div>
+                  )}
+                </div>
+
+                {/* Thumbnail Images */}
+                {productImages.length > 1 && (
+                  <div className="flex space-x-2 overflow-x-auto pb-2">
+                    {productImages.map((image, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedImageIndex(index)}
+                        className={`flex-shrink-0 w-20 h-20 bg-belek-gray rounded-lg p-2 border-2 transition-all duration-200 ${
+                          selectedImageIndex === index 
+                            ? 'border-belek-red' 
+                            : 'border-transparent hover:border-gray-300'
+                        }`}
+                      >
+                        <img
+                          src={image}
+                          alt={`${product.name} - миниатюра ${index + 1}`}
+                          className="w-full h-full object-contain"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Product Details */}
@@ -209,8 +291,6 @@ const ProductDetail = () => {
                     <ShoppingCart size={18} className="mr-2" />
                     В корзину
                   </button>
-
-                 
                 </div>
 
                 {/* Payment Methods */}
@@ -272,21 +352,17 @@ const ProductDetail = () => {
               </p>
             </TabsContent>
             <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">
-  <h2 className="text-lg font-semibold mb-4">Технические характеристики</h2>
-  <div className="divide-y">
-   
-    
-    {product.characteristics && product.characteristics.map((char, index) => {
-      console.log(char)
-      return <div key={index} className="grid grid-cols-2 py-3">
-        <div className="font-medium">{char.name}</div>
-        <div>{char.value}</div>
-      </div>
-})}
-    
-   
-  </div>
-</TabsContent>
+              <h2 className="text-lg font-semibold mb-4">Технические характеристики</h2>
+              <div className="divide-y">
+                {product.characteristics && product.characteristics.map((char, index) => {
+                  console.log(char)
+                  return <div key={index} className="grid grid-cols-2 py-3">
+                    <div className="font-medium">{char.name}</div>
+                    <div>{char.value}</div>
+                  </div>
+                })}
+              </div>
+            </TabsContent>
             <TabsContent value="reviews" className="p-6 bg-white rounded-lg shadow mt-2">
               <h2 className="text-lg font-semibold mb-4">Отзывы</h2>
               <div className="text-center py-8">

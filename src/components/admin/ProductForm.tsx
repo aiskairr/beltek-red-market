@@ -7,8 +7,8 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
 import { Category } from '../../hooks/useCategories';
 import { Brand } from "@/hooks/useBrands";
-import { useMemo } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, X, ImageIcon } from "lucide-react";
 
 interface ProductFormProps {
     categories: Category[];
@@ -22,19 +22,26 @@ interface Characteristic {
     value: string;
 }
 
+interface ProductImage {
+    file: File;
+    preview: string;
+}
+
 interface ProductFormData {
     name: string;
     price: string;
     category: string;
     mini_category: string;
     description: string;
-    image: File | null;
     brand: string;
     characteristics: Characteristic[];
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, onSubmit, onCancel }) => {
     const { toast } = useToast();
+    const [images, setImages] = useState<ProductImage[]>([]);
+    const [uploading, setUploading] = useState(false);
+    
     const form = useForm<ProductFormData>({
         defaultValues: {
             name: "",
@@ -43,7 +50,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
             category: "",
             mini_category: "",
             description: "",
-            image: null,
             characteristics: []
         }
     });
@@ -64,32 +70,75 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
         return category?.mini_categories || [];
     }, [selectedCategory, categories]);
 
+    // Обработка добавления изображений
+    const handleImageAdd = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files) return;
+
+        const newImages: ProductImage[] = [];
+        
+        Array.from(files).forEach(file => {
+            if (file.type.startsWith('image/')) {
+                const preview = URL.createObjectURL(file);
+                newImages.push({ file, preview });
+            }
+        });
+
+        setImages(prev => [...prev, ...newImages]);
+        // Очищаем input для повторного выбора файлов
+        event.target.value = '';
+    };
+
+    // Удаление изображения
+    const removeImage = (index: number) => {
+        setImages(prev => {
+            const updated = [...prev];
+            URL.revokeObjectURL(updated[index].preview); // Освобождаем память
+            updated.splice(index, 1);
+            return updated;
+        });
+    };
+
+    // Загрузка изображений в Supabase Storage
+    const uploadImages = async (imageFiles: ProductImage[]): Promise<string[]> => {
+        const uploadPromises = imageFiles.map(async ({ file }) => {
+            const filePath = `products/${Date.now()}_${Math.random().toString(36).substring(2)}_${file.name}`;
+            
+            const { data: uploadData, error: uploadError } = await supabase
+                .storage
+                .from("products")
+                .upload(filePath, file);
+
+            if (uploadError) {
+                throw new Error(`Ошибка загрузки ${file.name}: ${uploadError.message}`);
+            }
+
+            return supabase.storage
+                .from("products")
+                .getPublicUrl(filePath).data.publicUrl;
+        });
+
+        return Promise.all(uploadPromises);
+    };
+
     const handleSubmit = async (data: ProductFormData) => {
         try {
+            setUploading(true);
             const numericPrice = Number(data.price);
-            let imageUrl = "";
+            let imageUrls: string[] = [];
 
-            if (data.image) {
-                const file = data.image;
-                const filePath = `products/${Date.now()}_${file.name}`;
-
-                const { data: uploadData, error: uploadError } = await supabase
-                    .storage
-                    .from("products")
-                    .upload(filePath, file);
-
-                if (uploadError) {
+            // Загружаем изображения если они есть
+            if (images.length > 0) {
+                try {
+                    imageUrls = await uploadImages(images);
+                } catch (error: any) {
                     toast({
-                        title: "Ошибка загрузки",
-                        description: uploadError.message,
+                        title: "Ошибка загрузки изображений",
+                        description: error.message,
                         variant: "destructive"
                     });
                     return;
                 }
-
-                imageUrl = supabase.storage
-                    .from("products")
-                    .getPublicUrl(filePath).data.publicUrl;
             }
 
             // Фильтруем пустые характеристики и приводим к правильному формату
@@ -107,22 +156,28 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                 brand: data.brand,
                 description: data.description,
                 price: numericPrice,
-                image: imageUrl,
-                characteristics: filteredCharacteristics // Передаем как массив объектов
+                images: imageUrls, // Массив URL изображений
+                image: imageUrls[0] || "", // Основное изображение для обратной совместимости
+                characteristics: filteredCharacteristics
             };
 
-            console.log('Отправляемые данные:', productData); // Для отладки
+            console.log('Отправляемые данные:', productData);
 
             await onSubmit(productData);
 
+            // Очищаем форму и изображения
             form.reset();
+            images.forEach(img => URL.revokeObjectURL(img.preview));
+            setImages([]);
         } catch (error: any) {
-            console.error('Ошибка в handleSubmit:', error); // Для отладки
+            console.error('Ошибка в handleSubmit:', error);
             toast({
                 title: "Ошибка",
                 description: error.message,
                 variant: "destructive"
             });
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -139,6 +194,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
     const removeCharacteristic = (index: number) => {
         remove(index);
     };
+
+    // Очистка URL при размонтировании компонента
+    useEffect(() => {
+        return () => {
+            images.forEach(img => URL.revokeObjectURL(img.preview));
+        };
+    }, []);
 
     return (
         <Card className="mb-6">
@@ -265,23 +327,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
 
                             <FormField
                                 control={form.control}
-                                name="image"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Изображение</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(e) => field.onChange(e.target.files?.[0] || null)}
-                                            />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
                                 name="description"
                                 render={({ field }) => (
                                     <FormItem className="md:col-span-2">
@@ -297,6 +342,68 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                     </FormItem>
                                 )}
                             />
+                        </div>
+
+                        {/* Изображения */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <FormLabel className="text-base font-medium">
+                                    Изображения товара (опционально)
+                                </FormLabel>
+                                <Button
+                                    type="button"
+                                    onClick={() => document.getElementById('image-upload')?.click()}
+                                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                                    size="sm"
+                                    disabled={uploading}
+                                >
+                                    <ImageIcon size={16} />
+                                    Добавить изображения
+                                </Button>
+                            </div>
+
+                            <input
+                                id="image-upload"
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleImageAdd}
+                                className="hidden"
+                            />
+
+                            {images.length > 0 && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 border rounded-lg bg-gray-50">
+                                    {images.map((image, index) => (
+                                        <div key={index} className="relative group">
+                                            <img
+                                                src={image.preview}
+                                                alt={`Preview ${index + 1}`}
+                                                className="w-full h-24 object-cover rounded-lg border"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(index)}
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                            {index === 0 && (
+                                                <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 rounded">
+                                                    Главное
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {images.length === 0 && (
+                                <div className="text-center p-8 border rounded-lg bg-gray-50 text-gray-500">
+                                    <ImageIcon size={48} className="mx-auto mb-2 opacity-50" />
+                                    <p>Изображения не добавлены</p>
+                                    <p className="text-sm">Нажмите "Добавить изображения" чтобы загрузить</p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Характеристики */}
@@ -379,11 +486,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                         </div>
 
                         <div className="flex justify-end space-x-2">
-                            <Button type="button" onClick={onCancel}>
+                            <Button type="button" onClick={onCancel} disabled={uploading}>
                                 Отмена
                             </Button>
-                            <Button type="submit" className="bg-belek-red hover:bg-red-700">
-                                Добавить товар
+                            <Button 
+                                type="submit" 
+                                className="bg-belek-red hover:bg-red-700"
+                                disabled={uploading}
+                            >
+                                {uploading ? "Загрузка..." : "Добавить товар"}
                             </Button>
                         </div>
                     </form>

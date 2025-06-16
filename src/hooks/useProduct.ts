@@ -16,7 +16,8 @@ export interface Product {
   description: string;
   price: number;
   brand: string;
-  image?: string;
+  image?: string; // Главное изображение (для обратной совместимости)
+  images?: string[]; // Массив всех изображений
   characteristics?: Characteristic[];
   created_at: string;
 }
@@ -36,10 +37,13 @@ export const useProducts = () => {
       
       if (error) throw error;
       
-      // Обрабатываем characteristics - они могут быть строкой или уже объектом
+      // Обрабатываем characteristics и images
       const parsedProducts = (data || []).map(product => ({
         ...product,
-        characteristics: product.characteristics || []
+        characteristics: product.characteristics || [],
+        images: product.images || [],
+        // Устанавливаем главное изображение если его нет, но есть массив изображений
+        image: product.image || (product.images && product.images.length > 0 ? product.images[0] : '')
       }));
       
       setProducts(parsedProducts);
@@ -74,17 +78,26 @@ export const useProducts = () => {
     return data.publicUrl;
   };
 
-  const onEdit = async (id?: number, formData?: Product) => {
+  const onEdit = async (id?: number, formData?: any) => {
     try {
       if (!id || !formData) return;
 
-      let imageUrl = "";
-      const image = formData.image as string | File;
+      // Обрабатываем изображения
+      let imageUrls: string[] = [];
+      let mainImageUrl = "";
 
-      if (image instanceof File) {
-        imageUrl = await uploadProductImage(image);
-      } else {
-        imageUrl = image;
+      if (formData.images && Array.isArray(formData.images)) {
+        imageUrls = formData.images;
+        mainImageUrl = imageUrls[0] || "";
+      } else if (formData.image) {
+        // Обратная совместимость для одного изображения
+        if (formData.image instanceof File) {
+          mainImageUrl = await uploadProductImage(formData.image);
+          imageUrls = [mainImageUrl];
+        } else {
+          mainImageUrl = formData.image;
+          imageUrls = [mainImageUrl];
+        }
       }
 
       // Подготавливаем данные для отправки
@@ -92,14 +105,15 @@ export const useProducts = () => {
         name: formData.name,
         price: formData.price,
         description: formData.description,
-        image: imageUrl,
+        image: mainImageUrl, // Главное изображение
+        images: imageUrls, // Массив всех изображений
         brand: formData.brand,
         category: formData.category,
         mini_category: formData.mini_category || null,
-        characteristics: formData.characteristics || [] // Отправляем как есть - Supabase автоматически обработает JSONB
+        characteristics: formData.characteristics || []
       };
 
-      console.log('Данные для обновления:', updateData); // Для отладки
+      console.log('Данные для обновления:', updateData);
 
       const { data, error } = await supabase
         .from("products")
@@ -123,7 +137,7 @@ export const useProducts = () => {
 
       return data;
     } catch (error: any) {
-      console.error('Ошибка в onEdit:', error); // Для отладки
+      console.error('Ошибка в onEdit:', error);
       toast({
         title: "Ошибка обновления товара",
         description: error.message,
@@ -133,7 +147,7 @@ export const useProducts = () => {
     }
   };
 
-  const addProduct = async (productData: Omit<Product, 'id' | 'created_at'>) => {
+  const addProduct = async (productData: any) => {
     try {
       // Подготавливаем данные для отправки
       const insertData = {
@@ -143,11 +157,12 @@ export const useProducts = () => {
         brand: productData.brand,
         description: productData.description,
         price: productData.price,
-        image: productData.image,
-        characteristics: productData.characteristics || [] // Отправляем как есть - Supabase автоматически обработает JSONB
+        image: productData.image || "", // Главное изображение (для обратной совместимости)
+        images: productData.images || [], // Массив всех изображений
+        characteristics: productData.characteristics || []
       };
 
-      console.log('Данные для добавления:', insertData); // Для отладки
+      console.log('Данные для добавления:', insertData);
 
       const { data, error } = await supabase
         .from("products")
@@ -156,7 +171,7 @@ export const useProducts = () => {
         .single();
 
       if (error) {
-        console.error('Ошибка Supabase:', error); // Для отладки
+        console.error('Ошибка Supabase:', error);
         throw error;
       }
 
@@ -168,7 +183,7 @@ export const useProducts = () => {
       
       return data;
     } catch (error: any) {
-      console.error('Ошибка в addProduct:', error); // Для отладки
+      console.error('Ошибка в addProduct:', error);
       toast({
         title: "Ошибка добавления",
         description: error.message,
@@ -180,6 +195,13 @@ export const useProducts = () => {
 
   const deleteProduct = async (id: number) => {
     try {
+      // Получаем информацию о товаре перед удалением для очистки изображений
+      const { data: productToDelete } = await supabase
+        .from("products")
+        .select("images, image")
+        .eq("id", id)
+        .single();
+
       const { error } = await supabase
         .from("products")
         .delete()
@@ -187,12 +209,33 @@ export const useProducts = () => {
 
       if (error) throw error;
 
+      // Опционально: удаляем изображения из storage
+      if (productToDelete?.images && Array.isArray(productToDelete.images)) {
+        const deletePromises = productToDelete.images.map(async (imageUrl: string) => {
+          try {
+            // Извлекаем путь к файлу из URL
+            const urlParts = imageUrl.split('/');
+            const fileName = urlParts[urlParts.length - 1];
+            const filePath = `products/${fileName}`;
+            
+            await supabase.storage
+              .from('products')
+              .remove([filePath]);
+          } catch (error) {
+            console.warn('Не удалось удалить изображение:', imageUrl, error);
+          }
+        });
+        
+        await Promise.all(deletePromises);
+      }
+
       setProducts(prev => prev.filter(p => p.id !== id));
       toast({
         title: "Товар удалён",
         description: `Товар с ID ${id} был удалён.`,
       });
     } catch (error: any) {
+      console.error('Ошибка при удалении товара:', error);
       toast({
         title: "Ошибка",
         description: "Не удалось удалить товар.",
