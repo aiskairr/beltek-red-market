@@ -6,7 +6,7 @@ import { useCart } from "@/hooks/use-cart";
 import { supabase } from "@/lib/supabase";
 import { useCategories } from "@/hooks/useCategories";
 
-export const Header = () => {
+export const Header = ({ categories }: any) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -16,7 +16,6 @@ export const Header = () => {
   const navigate = useNavigate();
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
-  const { categories } = useCategories();
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [expandedMobileCategories, setExpandedMobileCategories] = useState(new Set());
@@ -149,9 +148,9 @@ export const Header = () => {
         <div className="container mx-auto flex justify-between items-center">
           <div className="text-sm hidden md:block">
             <li className="flex items-center"><Phone size={16} className="mr-2" />Беш Сары: <a href="tel:+996707030575" className="hover:text-belek-red transition-colors">+996 707 030 575</a></li>
-              <li className="flex items-center"><Phone size={16} className="mr-2" />Аю Гранд: <a href="tel:+996999160976" className="hover:text-belek-red transition-colors">+996 999 160 976</a></li>
-            
-         <li className="flex items-center">   <Mail/> {" "}<span>Email: belektehnika@gmail.com</span></li>
+            <li className="flex items-center"><Phone size={16} className="mr-2" />Аю Гранд: <a href="tel:+996999160976" className="hover:text-belek-red transition-colors">+996 999 160 976</a></li>
+
+            <li className="flex items-center">   <Mail /> {" "}<span>Email: belektehnika@gmail.com</span></li>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <Link
@@ -311,7 +310,7 @@ export const Header = () => {
       <nav className="bg-belek-gray hidden md:block relative">
         <div className="container mx-auto">
           <ul className="flex flex-wrap">
-            {categories.map((category, index) => (
+            {categories?.map((category, index) => (
               <li
                 key={category.category}
                 className="relative"
@@ -476,30 +475,30 @@ export const Header = () => {
                         </button>
                       )}
                     </div>
-                    
+
                     {/* Подкатегории */}
-                    {category.mini_categories && 
-                     category.mini_categories.length > 0 && 
-                     expandedMobileCategories.has(category.category) && (
-                      <div className="pb-2">
-                        <ul className="bg-gray-50 rounded-lg mt-2 divide-y divide-gray-200">
-                          {category.mini_categories.map((miniCategory, miniIndex) => (
-                            <li key={miniIndex}>
-                              <Link
-                                to={`/category/${category.category}/${miniCategory}`}
-                                className="block px-4 py-2 text-sm text-gray-600 hover:bg-belek-red hover:text-white transition-colors"
-                                onClick={closeMobileMenu}
-                              >
-                                {miniCategory}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    {category.mini_categories &&
+                      category.mini_categories.length > 0 &&
+                      expandedMobileCategories.has(category.category) && (
+                        <div className="pb-2">
+                          <ul className="bg-gray-50 rounded-lg mt-2 divide-y divide-gray-200">
+                            {category.mini_categories.map((miniCategory, miniIndex) => (
+                              <li key={miniIndex}>
+                                <Link
+                                  to={`/category/${category.category}/${miniCategory}`}
+                                  className="block px-4 py-2 text-sm text-gray-600 hover:bg-belek-red hover:text-white transition-colors"
+                                  onClick={closeMobileMenu}
+                                >
+                                  {miniCategory}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                   </li>
                 ))}
-                
+
                 {/* Дополнительные ссылки */}
                 <li>
                   <Link

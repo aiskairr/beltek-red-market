@@ -1,5 +1,5 @@
-// hooks/useProducts.ts
-import { useState, useEffect } from 'react';
+// hooks/useProducts.ts (оптимизированная версия с пагинацией)
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,51 +16,146 @@ export interface Product {
   description: string;
   price: number;
   brand: string;
-  image?: string; // Главное изображение (для обратной совместимости)
-  images?: string[]; // Массив всех изображений
+  image?: string;
+  images?: string[];
   characteristics?: Characteristic[];
   created_at: string;
 }
 
-export const useProducts = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface ProductsState {
+  products: Product[];
+  loading: boolean;
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+const DEFAULT_PAGE_SIZE = 50;
+
+export const useProducts = (initialPageSize: number = DEFAULT_PAGE_SIZE) => {
+  const [state, setState] = useState<ProductsState>({
+    products: [],
+    loading: true,
+    currentPage: 1,
+    totalPages: 0,
+    totalCount: 0,
+    pageSize: initialPageSize,
+    hasMore: false
+  });
+  
   const { toast } = useToast();
 
-  const fetchProducts = async () => {
+  // Загрузка товаров с пагинацией
+  const fetchProducts = useCallback(async (
+    page: number = 1, 
+    pageSize: number = state.pageSize,
+    searchTerm: string = '',
+    category: string = '',
+    append: boolean = false
+  ) => {
     try {
-      setLoading(true);
-      const { data, error } = await supabase
+      setState(prev => ({ ...prev, loading: true }));
+
+      let query = supabase
         .from('products')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
+
+      // Добавляем фильтры
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+      }
+      
+      if (category) {
+        query = query.eq('category', category);
+      }
+
+      // Пагинация
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
       
       if (error) throw error;
       
-      // Обрабатываем characteristics и images
+      // Обрабатываем данные
       const parsedProducts = (data || []).map(product => ({
         ...product,
         characteristics: product.characteristics || [],
         images: product.images || [],
-        // Устанавливаем главное изображение если его нет, но есть массив изображений
         image: product.image || (product.images && product.images.length > 0 ? product.images[0] : '')
       }));
-      
-      setProducts(parsedProducts);
+
+      const totalCount = count || 0;
+      const totalPages = Math.ceil(totalCount / pageSize);
+      const hasMore = page < totalPages;
+
+      setState(prev => ({
+        ...prev,
+        products: append ? [...prev.products, ...parsedProducts] : parsedProducts,
+        currentPage: page,
+        totalPages,
+        totalCount,
+        pageSize,
+        hasMore,
+        loading: false
+      }));
+
+      return {
+        products: parsedProducts,
+        totalCount,
+        totalPages,
+        hasMore
+      };
+
     } catch (error: any) {
       toast({
         title: "Ошибка загрузки",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      setState(prev => ({ ...prev, loading: false }));
+      throw error;
     }
-  };
+  }, [state.pageSize, toast]);
+
+  // Загрузка следующей страницы (для infinite scroll)
+  const loadMore = useCallback(async (searchTerm?: string, category?: string) => {
+    if (state.loading || !state.hasMore) return;
+    
+    await fetchProducts(
+      state.currentPage + 1, 
+      state.pageSize, 
+      searchTerm, 
+      category, 
+      true // append = true
+    );
+  }, [state.currentPage, state.pageSize, state.loading, state.hasMore, fetchProducts]);
+
+  // Переход на конкретную страницу
+  const goToPage = useCallback(async (page: number, searchTerm?: string, category?: string) => {
+    if (page < 1 || page > state.totalPages || state.loading) return;
+    
+    await fetchProducts(page, state.pageSize, searchTerm, category, false);
+  }, [state.totalPages, state.pageSize, state.loading, fetchProducts]);
+
+  // Поиск с пагинацией
+  const searchProducts = useCallback(async (searchTerm: string, category?: string) => {
+    await fetchProducts(1, state.pageSize, searchTerm, category, false);
+  }, [state.pageSize, fetchProducts]);
+
+  // Изменение размера страницы
+  const changePageSize = useCallback(async (newPageSize: number, searchTerm?: string, category?: string) => {
+    setState(prev => ({ ...prev, pageSize: newPageSize }));
+    await fetchProducts(1, newPageSize, searchTerm, category, false);
+  }, [fetchProducts]);
 
   const uploadProductImage = async (file: File): Promise<string> => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
     const filePath = `products/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -82,7 +177,6 @@ export const useProducts = () => {
     try {
       if (!id || !formData) return;
 
-      // Обрабатываем изображения
       let imageUrls: string[] = [];
       let mainImageUrl = "";
 
@@ -90,7 +184,6 @@ export const useProducts = () => {
         imageUrls = formData.images;
         mainImageUrl = imageUrls[0] || "";
       } else if (formData.image) {
-        // Обратная совместимость для одного изображения
         if (formData.image instanceof File) {
           mainImageUrl = await uploadProductImage(formData.image);
           imageUrls = [mainImageUrl];
@@ -100,20 +193,17 @@ export const useProducts = () => {
         }
       }
 
-      // Подготавливаем данные для отправки
       const updateData = {
         name: formData.name,
         price: formData.price,
         description: formData.description,
-        image: mainImageUrl, // Главное изображение
-        images: imageUrls, // Массив всех изображений
+        image: mainImageUrl,
+        images: imageUrls,
         brand: formData.brand,
         category: formData.category,
         mini_category: formData.mini_category || null,
         characteristics: formData.characteristics || []
       };
-
-      console.log('Данные для обновления:', updateData);
 
       const { data, error } = await supabase
         .from("products")
@@ -124,11 +214,11 @@ export const useProducts = () => {
 
       if (error) throw error;
 
-      setProducts(prev =>
-        prev
-          .map(prod => (prod.id === id ? data : prod))
-          .sort((a, b) => a.name.localeCompare(b.name))
-      );
+      // Обновляем товар в текущем списке
+      setState(prev => ({
+        ...prev,
+        products: prev.products.map(prod => prod.id === id ? data : prod)
+      }));
 
       toast({
         title: "Товар обновлён",
@@ -137,7 +227,6 @@ export const useProducts = () => {
 
       return data;
     } catch (error: any) {
-      console.error('Ошибка в onEdit:', error);
       toast({
         title: "Ошибка обновления товара",
         description: error.message,
@@ -149,7 +238,6 @@ export const useProducts = () => {
 
   const addProduct = async (productData: any) => {
     try {
-      // Подготавливаем данные для отправки
       const insertData = {
         name: productData.name,
         category: productData.category,
@@ -157,12 +245,10 @@ export const useProducts = () => {
         brand: productData.brand,
         description: productData.description,
         price: productData.price,
-        image: productData.image || "", // Главное изображение (для обратной совместимости)
-        images: productData.images || [], // Массив всех изображений
+        image: productData.image || "",
+        images: productData.images || [],
         templates: productData.templates || []
       };
-
-      console.log('Данные для добавления:', insertData);
 
       const { data, error } = await supabase
         .from("products")
@@ -170,12 +256,16 @@ export const useProducts = () => {
         .select()
         .single();
 
-      if (error) {
-        console.error('Ошибка Supabase:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      setProducts(prev => [data, ...prev]);
+      // Добавляем товар в начало списка и обновляем счетчики
+      setState(prev => ({
+        ...prev,
+        products: [data, ...prev.products.slice(0, prev.pageSize - 1)], // Убираем последний если превышаем лимит
+        totalCount: prev.totalCount + 1,
+        totalPages: Math.ceil((prev.totalCount + 1) / prev.pageSize)
+      }));
+
       toast({
         title: "Товар добавлен",
         description: `${productData.name} успешно добавлен`,
@@ -183,7 +273,6 @@ export const useProducts = () => {
       
       return data;
     } catch (error: any) {
-      console.error('Ошибка в addProduct:', error);
       toast({
         title: "Ошибка добавления",
         description: error.message,
@@ -195,7 +284,6 @@ export const useProducts = () => {
 
   const deleteProduct = async (id: number) => {
     try {
-      // Получаем информацию о товаре перед удалением для очистки изображений
       const { data: productToDelete } = await supabase
         .from("products")
         .select("images, image")
@@ -209,11 +297,10 @@ export const useProducts = () => {
 
       if (error) throw error;
 
-      // Опционально: удаляем изображения из storage
+      // Удаляем изображения из storage
       if (productToDelete?.images && Array.isArray(productToDelete.images)) {
         const deletePromises = productToDelete.images.map(async (imageUrl: string) => {
           try {
-            // Извлекаем путь к файлу из URL
             const urlParts = imageUrl.split('/');
             const fileName = urlParts[urlParts.length - 1];
             const filePath = `products/${fileName}`;
@@ -229,13 +316,19 @@ export const useProducts = () => {
         await Promise.all(deletePromises);
       }
 
-      setProducts(prev => prev.filter(p => p.id !== id));
+      // Обновляем состояние
+      setState(prev => ({
+        ...prev,
+        products: prev.products.filter(p => p.id !== id),
+        totalCount: prev.totalCount - 1,
+        totalPages: Math.ceil(Math.max(0, prev.totalCount - 1) / prev.pageSize)
+      }));
+
       toast({
         title: "Товар удалён",
         description: `Товар с ID ${id} был удалён.`,
       });
     } catch (error: any) {
-      console.error('Ошибка при удалении товара:', error);
       toast({
         title: "Ошибка",
         description: "Не удалось удалить товар.",
@@ -244,16 +337,32 @@ export const useProducts = () => {
     }
   };
 
+  // Начальная загрузка
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(1);
   }, []);
 
   return {
-    products,
-    loading,
+    // Данные
+    products: state.products,
+    loading: state.loading,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages,
+    totalCount: state.totalCount,
+    pageSize: state.pageSize,
+    hasMore: state.hasMore,
+    
+    // Методы CRUD
     addProduct,
     deleteProduct,
     onEdit,
-    refetch: fetchProducts
+    
+    // Методы пагинации
+    fetchProducts,
+    loadMore,
+    goToPage,
+    searchProducts,
+    changePageSize,
+    refetch: () => fetchProducts(state.currentPage)
   };
 };
