@@ -9,6 +9,9 @@ import { supabase } from "@/lib/supabase";
 import mainpage from "../../public/mainpage2.png"
 import { useBrands } from '@/hooks/useBrands';
 import saleimage from "../../public/saleimage.png"
+import main1 from "../../public/main1.png"
+import main2 from "../../public/2main.png"
+import main3 from "../../public/3main.png"
 
 // Categories data
 const categories = [
@@ -68,11 +71,11 @@ const Index = () => {
    const slides = [
     {
       id: 1,
-      title: "СТИРАЛЬНЫЕ И СУШИЛЬНЫЕ",
-      subtitle: "МАШИНЫ HAIER СЕРИИ X",
-      description: "Нужны вашей одежде как воздух",
-      buttonText: "Перейти",
-      image: "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=800&h=600&fit=crop",
+      title: "КЛИМАТИЧЕСКАЯ ТЕХНИКА",
+      subtitle: "Кондиционеры",
+      description: "Все для комфортного лета",
+      buttonText: `/category/Климатическая%20техника/Кондиционеры`,
+      image: `${main1}`,
       background: "linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 30%, #330a0a 70%, #4d0000 100%)"
     },
     {
@@ -80,28 +83,19 @@ const Index = () => {
       title: "ХОЛОДИЛЬНИКИ ПРЕМИУМ",
       subtitle: "КЛАССА LG SIGNATURE",
       description: "Инновации для вашей кухни",
-      buttonText: "Смотреть",
-      image: "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=800&h=600&fit=crop",
+      buttonText: "/category/Отдельностоящая%20техника/Холодильники",
+      image: `${main2}`,
       background: "linear-gradient(135deg, #000000 0%, #1a0000 40%, #660000 80%, #800000 100%)"
     },
     {
       id: 3,
       title: "КУХОННАЯ ТЕХНИКА",
-      subtitle: "BOSCH СЕРИИ 8",
+      subtitle: "Все для вашей кухни",
       description: "Профессиональное качество дома",
       buttonText: "Каталог",
-      image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop",
+      image: `${main3}`,
       background: "linear-gradient(135deg, #0d0d0d 0%, #200000 35%, #4d0000 75%, #990000 100%)"
     },
-    {
-      id: 4,
-      title: "КЛИМАТИЧЕСКАЯ ТЕХНИКА",
-      subtitle: "DAIKIN PREMIUM",
-      description: "Идеальный микроклимат круглый год",
-      buttonText: "Узнать больше",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop",
-      background: "linear-gradient(135deg, #000000 0%, #0d0d0d 25%, #330000 60%, #cc0000 100%)"
-    }
   ];
 
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -181,7 +175,8 @@ const Index = () => {
               </p>
               
               <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-600/30">
-                {current.buttonText}
+                <Link to={current.buttonText}>
+                Перейти</Link>
               </button>
             </div>
           </div>

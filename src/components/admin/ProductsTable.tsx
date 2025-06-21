@@ -23,37 +23,46 @@ import { Edit, Trash, Image as ImageIcon, X, Plus, Minus, Upload } from "lucide-
 import { Category } from '@/hooks/useCategories';
 import { Brand } from '@/hooks/useBrands';
 
-// Интерфейс для характеристик
-interface Characteristic {
-  name: string;
-  value: string;
+// Интерфейс для шаблонов (заменяет characteristics)
+interface Template {
+  template: string; // Исправлено: было name, должно быть template
+  value: string;    // Исправлено: было template, должно быть value
 }
 
-// Обновленный интерфейс Product с массивом изображений
+// Обновленный интерфейс Product с templates
 interface Product {
   id: number;
   name: string;
   description?: string;
   price: number;
-  images?: string[]; // Изменено с image на images (массив)
+  images?: string[];
   category: string;
   mini_category?: string;
   brand: string;
-  characteristics?: Characteristic[];
+  templates?: Template[]; // Заменили characteristics на templates
   category_id?: number;
   created_at?: string;
 }
 
 interface ProductsTableProps {
   categories: Category[];
-  brands: Brand[]
+  brands: Brand[];
   products: Product[];
   onDelete: (id: number) => void;
   onEdit?: (id: number, formData: Product) => void;
   loading?: boolean;
+  availableTemplates?: string[]; // Изменено: массив строк для названий шаблонов
 }
 
-export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, loading = false }: ProductsTableProps) => {
+export const ProductsTable = ({ 
+  products, 
+  onDelete, 
+  onEdit, 
+  categories, 
+  brands, 
+  loading = false,
+  availableTemplates = [] 
+}: ProductsTableProps) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -64,9 +73,9 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     category: '',
     mini_category: ''
   });
-  const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [images, setImages] = useState<string[]>([]); // Массив для изображений
+  const [images, setImages] = useState<string[]>([]);
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
 
   // Получаем выбранную категорию и её мини-категории
@@ -88,6 +97,9 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     }
   }, [formData.category, categories]);
 
+  // Получаем доступные шаблоны для выбранной категории
+  const categoryTemplates = selectedCategory?.templates || [];
+
   const handleEditClick = (product: Product) => {
     setEditingProduct(product);
     setFormData({
@@ -98,8 +110,8 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
       category: product.category,
       mini_category: product.mini_category || '',
     });
-    setCharacteristics(product.characteristics || []);
-    setImages(product.images || []); // Загружаем массив изображений
+    setTemplates(product.templates || []); // Используем templates вместо characteristics
+    setImages(product.images || []);
     setIsModalOpen(true);
   };
 
@@ -107,8 +119,8 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     setIsModalOpen(false);
     setEditingProduct(null);
     setFormData({ name: '', description: '', price: '', brand: '', category: '', mini_category: '' });
-    setCharacteristics([]);
-    setImages([]); // Очищаем изображения
+    setTemplates([]);
+    setImages([]);
     setSelectedCategory(null);
   };
 
@@ -159,29 +171,38 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
     setDraggedImageIndex(null);
   };
 
-  // Функции для работы с характеристиками
-  const addCharacteristic = () => {
-    setCharacteristics(prev => [...prev, { name: '', value: '' }]);
+  // Функции для работы с шаблонами
+  const addTemplate = () => {
+    setTemplates(prev => [...prev, { template: '', value: '' }]);
   };
 
-  const removeCharacteristic = (index: number) => {
-    setCharacteristics(prev => prev.filter((_, i) => i !== index));
+  const removeTemplate = (index: number) => {
+    setTemplates(prev => prev.filter((_, i) => i !== index));
   };
 
-  const updateCharacteristic = (index: number, field: 'name' | 'value', value: string) => {
-    setCharacteristics(prev => 
-      prev.map((char, i) => 
-        i === index ? { ...char, [field]: value } : char
+  // Исправленная функция обновления шаблона
+  const updateTemplate = (index: number, field: 'template' | 'value', value: string) => {
+    setTemplates(prev => 
+      prev.map((template, i) => 
+        i === index ? { ...template, [field]: value } : template
       )
     );
+  };
+
+  // Добавление готового шаблона
+  const addPredefinedTemplate = (templateName: string) => {
+    const exists = templates.some(t => t.template === templateName);
+    if (!exists) {
+      setTemplates(prev => [...prev, { template: templateName, value: '' }]);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct && onEdit) {
-      // Фильтруем пустые характеристики
-      const validCharacteristics = characteristics.filter(
-        char => char.name.trim() !== '' && char.value.trim() !== ''
+      // Фильтруем пустые шаблоны
+      const validTemplates = templates.filter(
+        template => template.template.trim() !== '' && template.value.trim() !== ''
       );
 
       const updatedProduct: Product = {
@@ -189,11 +210,11 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price) || 0,
-        images: images, // Сохраняем массив изображений
+        images: images,
         brand: formData.brand,
         category: formData.category,
         mini_category: formData.mini_category,
-        characteristics: validCharacteristics,
+        templates: validTemplates, // Используем templates
       };
       onEdit(editingProduct.id, updatedProduct);
       handleModalClose();
@@ -243,7 +264,7 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                 <TableHead>Название</TableHead>
                 <TableHead>Категория</TableHead>
                 <TableHead>Мини-категория</TableHead>
-                <TableHead>Характеристики</TableHead>
+                <TableHead>Шаблоны</TableHead>
                 <TableHead>Описание</TableHead>
                 <TableHead>Цена</TableHead>
                 <TableHead>Дата создания</TableHead>
@@ -294,21 +315,21 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
                     )}
                   </TableCell>
                   <TableCell className="max-w-xs">
-                    {product.characteristics && product.characteristics.length > 0 ? (
+                    {product.templates && product.templates.length > 0 ? (
                       <div className="space-y-1">
-                        {product.characteristics.slice(0, 2).map((char, index) => (
+                        {product.templates.slice(0, 2).map((template, index) => (
                           <div key={index} className="text-xs">
-                            <span className="font-medium">{char.name}:</span> {char.value}
+                            <span className="font-medium">{template.template}:</span> {template.value}
                           </div>
                         ))}
-                        {product.characteristics.length > 2 && (
+                        {product.templates.length > 2 && (
                           <div className="text-xs text-gray-500">
-                            +{product.characteristics.length - 2} еще
+                            +{product.templates.length - 2} еще
                           </div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm">Нет характеристик</span>
+                      <span className="text-gray-400 text-sm">Нет шаблонов</span>
                     )}
                   </TableCell>
                   <TableCell className="max-w-xs">
@@ -476,49 +497,82 @@ export const ProductsTable = ({ products, onDelete, onEdit, categories, brands, 
               />
             </div>
 
-            {/* Секция характеристик */}
+            {/* Секция шаблонов */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Характеристики товара</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addCharacteristic}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Добавить характеристику
-                </Button>
+                <Label>Шаблоны товара</Label>
+                <div className="flex gap-2">
+                  {categoryTemplates.length > 0 && (
+                    <Select onValueChange={(value) => {
+                      if (value) addPredefinedTemplate(value);
+                    }}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Выбрать готовый шаблон" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoryTemplates.map((template, index) => (
+                          <SelectItem key={index} value={template}>
+                            {template}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addTemplate}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Добавить шаблон
+                  </Button>
+                </div>
               </div>
-              
+            
               <div className="space-y-3 max-h-60 overflow-y-auto border rounded-lg p-3">
-                {characteristics.length === 0 ? (
+                {templates.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    <p>Характеристики не добавлены</p>
-                    <p className="text-sm">Нажмите "Добавить характеристику" выше</p>
+                    <p>Шаблоны не добавлены</p>
+                    <p className="text-sm">Нажмите "Добавить шаблон" выше или выберите готовый</p>
                   </div>
                 ) : (
-                  characteristics.map((char, index) => (
+                  templates.map((template, index) => (
                     <div key={index} className="flex gap-2 items-center p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-2">
+                        <Select
+                          value={template.template || ''}
+                          onValueChange={(value) => updateTemplate(index, 'template', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите шаблон" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categoryTemplates.length > 0 ? (
+                              categoryTemplates.map((temp, tempIndex) => (
+                                <SelectItem key={tempIndex} value={temp}>
+                                  {temp}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="" disabled>
+                                Нет доступных шаблонов
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
                         <Input
-                          placeholder="Название характеристики"
-                          value={char.name}
-                          onChange={(e) => updateCharacteristic(index, 'name', e.target.value)}
-                          className="mb-2"
-                        />
-                        <Input
-                          placeholder="Значение характеристики"
-                          value={char.value}
-                          onChange={(e) => updateCharacteristic(index, 'value', e.target.value)}
+                          placeholder="Значение шаблона"
+                          value={template.value || ''}
+                          onChange={(e) => updateTemplate(index, 'value', e.target.value)}
                         />
                       </div>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => removeCharacteristic(index)}
+                        onClick={() => removeTemplate(index)}
                         className="text-red-500 hover:text-red-700 hover:border-red-300"
                       >
                         <Minus className="h-4 w-4" />

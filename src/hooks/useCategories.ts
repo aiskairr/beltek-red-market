@@ -1,4 +1,4 @@
-// hooks/useCategories.ts (обновленная версия с подкатегориями и импортом)
+// hooks/useCategories.ts (обновленная версия с полной поддержкой шаблонов)
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
@@ -8,8 +8,8 @@ export interface Category {
   category: string;
   image?: string;
   mini_categories?: string[];
+  templates?: string[];
   created_at?: string;
-  templates: any;
 }
 
 export interface CategoryFormData {
@@ -34,7 +34,14 @@ export const useCategories = () => {
 
       if (error) throw error;
 
-      setCategories(data || []);
+      // Приводим данные к нужному формату
+      const formattedData = (data || []).map(cat => ({
+        ...cat,
+        mini_categories: cat.mini_categories || [],
+        templates: Array.isArray(cat.templates) ? cat.templates : []
+      }));
+
+      setCategories(formattedData);
     } catch (error: any) {
       toast({
         title: "Ошибка загрузки категорий",
@@ -80,21 +87,27 @@ export const useCategories = () => {
         .insert([{
           category: formData.category,
           image: imageUrl,
-          mini_categories: formData.mini_categories,
-          templates: formData.templates
+          mini_categories: formData.mini_categories.filter(cat => cat.trim() !== ''),
+          templates: formData.templates.filter(template => template.trim() !== '')
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      setCategories(prev => [...prev, data].sort((a, b) => a.category.localeCompare(b.category)));
+      const newCategory = {
+        ...data,
+        mini_categories: data.mini_categories || [],
+        templates: Array.isArray(data.templates) ? data.templates : []
+      };
+
+      setCategories(prev => [...prev, newCategory].sort((a, b) => a.category.localeCompare(b.category)));
       toast({
         title: "Категория добавлена",
         description: `Категория "${formData.category}" успешно добавлена`,
       });
 
-      return data;
+      return newCategory;
     } catch (error: any) {
       toast({
         title: "Ошибка добавления",
@@ -122,7 +135,8 @@ export const useCategories = () => {
         .update({
           category: formData.category,
           image: imageUrl,
-          mini_categories: formData.mini_categories || []
+          mini_categories: formData.mini_categories || [],
+          templates: formData.templates || []
         })
         .eq("id", id)
         .select()
@@ -130,9 +144,15 @@ export const useCategories = () => {
 
       if (error) throw error;
 
+      const updatedCategory = {
+        ...data,
+        mini_categories: data.mini_categories || [],
+        templates: Array.isArray(data.templates) ? data.templates : []
+      };
+
       setCategories(prev =>
         prev
-          .map(cat => (cat.id === id ? data : cat))
+          .map(cat => (cat.id === id ? updatedCategory : cat))
           .sort((a, b) => a.category.localeCompare(b.category))
       );
 
@@ -141,7 +161,7 @@ export const useCategories = () => {
         description: `Категория "${formData.category}" успешно обновлена`,
       });
 
-      return data;
+      return updatedCategory;
     } catch (error: any) {
       toast({
         title: "Ошибка обновления",
@@ -231,7 +251,8 @@ export const useCategories = () => {
       const categoriesToInsert = categoriesData.map(cat => ({
         category: cat.category,
         image: cat.image || null,
-        mini_categories: cat.mini_categories || []
+        mini_categories: cat.mini_categories || [],
+        templates: cat.templates || []
       }));
 
       // Вставляем все категории одним запросом
@@ -242,9 +263,16 @@ export const useCategories = () => {
 
       if (error) throw error;
 
+      // Форматируем полученные данные
+      const formattedData = data.map(cat => ({
+        ...cat,
+        mini_categories: cat.mini_categories || [],
+        templates: Array.isArray(cat.templates) ? cat.templates : []
+      }));
+
       // Обновляем локальное состояние
       setCategories(prev =>
-        [...prev, ...data].sort((a, b) => a.category.localeCompare(b.category))
+        [...prev, ...formattedData].sort((a, b) => a.category.localeCompare(b.category))
       );
 
       toast({
@@ -255,7 +283,7 @@ export const useCategories = () => {
       return {
         success: true,
         imported: data.length,
-        categories: data
+        categories: formattedData
       };
     } catch (error: any) {
       toast({

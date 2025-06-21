@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
 
-export interface Characteristic {
+export interface Template {
   name: string;
   value: string;
 }
@@ -18,7 +18,7 @@ export interface Product {
   brand: string;
   image?: string; // Главное изображение (для обратной совместимости)
   images?: string[]; // Массив всех изображений
-  characteristics?: Characteristic[];
+  templates?: Template[]; // Заменили characteristics на templates
   created_at: string;
 }
 
@@ -37,10 +37,10 @@ export const useProducts = () => {
       
       if (error) throw error;
       
-      // Обрабатываем characteristics и images
+      // Обрабатываем templates и images
       const parsedProducts = (data || []).map(product => ({
         ...product,
-        characteristics: product.characteristics || [],
+        templates: product.templates || [], // Заменили characteristics на templates
         images: product.images || [],
         // Устанавливаем главное изображение если его нет, но есть массив изображений
         image: product.image || (product.images && product.images.length > 0 ? product.images[0] : '')
@@ -110,7 +110,7 @@ export const useProducts = () => {
         brand: formData.brand,
         category: formData.category,
         mini_category: formData.mini_category || null,
-        characteristics: formData.characteristics || []
+        templates: formData.templates || [] // Заменили characteristics на templates
       };
 
       console.log('Данные для обновления:', updateData);
@@ -159,7 +159,7 @@ export const useProducts = () => {
         price: productData.price,
         image: productData.image || "", // Главное изображение (для обратной совместимости)
         images: productData.images || [], // Массив всех изображений
-        templates: productData.templates || []
+        templates: productData.templates || [] // Заменили characteristics на templates
       };
 
       console.log('Данные для добавления:', insertData);

@@ -1,4 +1,4 @@
-// components/admin/CategoriesTable.tsx (обновленная версия с мини-категориями)
+// components/admin/CategoriesTable.tsx (обновленная версия с редактированием шаблонов)
 import { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger 
 } from "@/components/ui/dialog";
-import { Edit, Trash, Image as ImageIcon, X, Plus, Minus } from "lucide-react";
+import { Edit, Trash, Image as ImageIcon, X, Plus, Minus, FileText } from "lucide-react";
 import { Category } from '../../hooks/useCategories';
 
 interface CategoriesTableProps {
@@ -29,7 +29,8 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
   const [formData, setFormData] = useState({
     category: '',
     image: '',
-    mini_categories: [] as string[]
+    mini_categories: [] as string[],
+    templates: [] as string[]
   });
   const [imagePreview, setImagePreview] = useState<string>('');
 
@@ -38,7 +39,8 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
     setFormData({
       category: category.category,
       image: category.image || '',
-      mini_categories: category.mini_categories || []
+      mini_categories: category.mini_categories || [],
+      templates: Array.isArray(category.templates) ? category.templates : []
     });
     setImagePreview(category.image || '');
     setIsModalOpen(true);
@@ -47,7 +49,7 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingCategory(null);
-    setFormData({ category: '', image: '', mini_categories: [] });
+    setFormData({ category: '', image: '', mini_categories: [], templates: [] });
     setImagePreview('');
   };
 
@@ -85,6 +87,28 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
     }));
   };
 
+  // Функции для работы с шаблонами
+  const addTemplate = () => {
+    setFormData(prev => ({
+      ...prev,
+      templates: [...prev.templates, '']
+    }));
+  };
+
+  const removeTemplate = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      templates: prev.templates.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateTemplate = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      templates: prev.templates.map((template, i) => i === index ? value : template)
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingCategory && onEdit) {
@@ -92,7 +116,8 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
         ...editingCategory,
         category: formData.category,
         image: formData.image,
-        mini_categories: formData.mini_categories.filter(cat => cat.trim() !== '')
+        mini_categories: formData.mini_categories.filter(cat => cat.trim() !== ''),
+        templates: formData.templates.filter(template => template.trim() !== '')
       };
       onEdit(editingCategory.id, updatedCategory);
       handleModalClose();
@@ -138,6 +163,7 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
                 <TableHead>Изображение</TableHead>
                 <TableHead>Название</TableHead>
                 <TableHead>Мини-категории</TableHead>
+                <TableHead>Шаблоны</TableHead>
                 <TableHead>Дата создания</TableHead>
                 <TableHead className="text-right">Действия</TableHead>
               </TableRow>
@@ -174,6 +200,23 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
                       </div>
                     ) : (
                       <span className="text-gray-400 text-sm">Нет мини-категорий</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {Array.isArray(category.templates) && category.templates.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {category.templates.map((template, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            {template}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Нет шаблонов</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -216,7 +259,7 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
 
       {/* Модальное окно редактирования */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Редактировать категорию</DialogTitle>
           </DialogHeader>
@@ -305,6 +348,55 @@ export const CategoriesTable = ({ categories, onDelete, onEdit, loading = false 
                         variant="outline"
                         size="sm"
                         onClick={() => removeMiniCategory(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Секция шаблонов */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Шаблоны</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addTemplate}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Добавить шаблон
+                </Button>
+              </div>
+              
+              {formData.templates.length === 0 ? (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  Шаблоны не добавлены
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {formData.templates.map((template, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <FileText className="h-4 w-4 text-gray-400" />
+                        <Input
+                          type="text"
+                          value={template}
+                          onChange={(e) => updateTemplate(index, e.target.value)}
+                          placeholder={`Шаблон ${index + 1}`}
+                          className="flex-1"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeTemplate(index)}
                         className="text-red-500 hover:text-red-700"
                       >
                         <Minus className="h-4 w-4" />
