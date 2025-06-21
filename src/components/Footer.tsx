@@ -2,8 +2,7 @@ import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Phone, Mail, MapPin } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
 
-export const Footer = () => {
-  const { categories } = useCategories();
+export const Footer = ({categories}:any) => {
   return (
     <footer className="bg-belek-black text-white py-10">
       <div className="container mx-auto px-4">
@@ -21,7 +20,7 @@ export const Footer = () => {
           <div>
             <h3 className="text-xl font-bold mb-4">Каталог</h3>
             <ul className="space-y-2">
-              {categories.map((category) => (
+              {categories?.map((category) => (
                 <li key={category.category}>
                   <Link
                     to={`/category/${category.category}`}

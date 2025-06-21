@@ -9,25 +9,18 @@ import { supabase } from "@/lib/supabase";
 import mainpage from "../../public/mainpage2.png"
 import { useBrands } from '@/hooks/useBrands';
 import saleimage from "../../public/saleimage.png"
+import { useCategories } from '@/hooks/useCategories';
+import {FullPageLoader} from "../components/Preloader"
 import main1 from "../../public/main1.png"
 import main2 from "../../public/2main.png"
 import main3 from "../../public/3main.png"
-
-// Categories data
-const categories = [
-  { name: 'Холодильники', image: '/category-refrigerators.jpg', slug: 'refrigerators' },
-  { name: 'Стиральные машины', image: '/category-washing-machines.jpg', slug: 'washing-machines' },
-  { name: 'Телевизоры', image: '/category-tvs.jpg', slug: 'tvs' },
-  { name: 'Кухонная техника', image: '/category-kitchen.jpg', slug: 'kitchen' },
-  { name: 'Кондиционеры', image: '/category-air-conditioners.jpg', slug: 'air-conditioners' },
-  { name: 'Пылесосы', image: '/category-vacuum-cleaners.jpg', slug: 'vacuum-cleaners' },
-];
 
 const Index = () => {
 
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { brands } = useBrands()
+  const { categories: categoriesData, loading: CategoriesLoading } = useCategories();
 
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
@@ -62,13 +55,13 @@ const Index = () => {
         console.error("Ошибка загрузки категорий:", error.message);
       } else {
         setCategories(data || []);
-    
+
       }
     };
 
     fetchCategories();
   }, [])
-   const slides = [
+  const slides = [
     {
       id: 1,
       title: "КЛИМАТИЧЕСКАЯ ТЕХНИКА",
@@ -140,113 +133,114 @@ const Index = () => {
   };
 
   const current = slides[currentSlide];
+  if (CategoriesLoading) {
+    return (
+      <FullPageLoader />
+    )
+  }
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <Header categories={categoriesData} />
 
       <main className="flex-1">
         {/* Hero Banner */}
-        <section 
-      className="relative min-h-[600px] md:min-h-[700px] overflow-hidden transition-all duration-1000 ease-in-out"
-      style={{ background: current.background }}
-    >
-      {/* Декоративные элементы фона */}
-      <div className="absolute inset-0">
-        <div className="absolute top-10 right-10 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 left-20 w-64 h-64 bg-red-400/8 rounded-full blur-2xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-red-500/15 rounded-full blur-xl animate-bounce"></div>
-      </div>
-
-      <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
-        <div className="flex flex-col lg:flex-row items-center min-h-[500px]">
-          
-          {/* Левая часть - текст */}
-          <div className="lg:w-1/2 text-white mb-8 lg:mb-0">
-            <div className={`transition-all duration-700 transform ${
-              isAnimating ? 'opacity-0 translate-x-[-50px]' : 'opacity-100 translate-x-0'
-            }`}>
-              <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 leading-tight">
-                <span className="block">{current.title}</span>
-                <span className="block text-red-400">{current.subtitle}</span>
-              </h1>
-              
-              <p className="text-lg md:text-xl mb-8 text-gray-300 max-w-md">
-                {current.description}
-              </p>
-              
-              <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-600/30">
-                <Link to={current.buttonText}>
-                Перейти</Link>
-              </button>
-            </div>
+        <section
+          className="relative min-h-[600px] md:min-h-[700px] overflow-hidden transition-all duration-1000 ease-in-out"
+          style={{ background: current.background }}
+        >
+          {/* Декоративные элементы фона */}
+          <div className="absolute inset-0">
+            <div className="absolute top-10 right-10 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-20 left-20 w-64 h-64 bg-red-400/8 rounded-full blur-2xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-red-500/15 rounded-full blur-xl animate-bounce"></div>
           </div>
 
-          {/* Правая часть - изображение */}
-          <div className="lg:w-1/2 relative">
-            <div className={`transition-all duration-700 transform ${
-              isAnimating ? 'opacity-0 scale-95 rotate-2' : 'opacity-100 scale-100 rotate-0'
-            }`}>
-              <div className="relative max-w-lg mx-auto">
-                <img
-                  src={current.image}
-                  alt={current.title}
-                  className="w-full h-auto rounded-2xl shadow-2xl"
-                />
-                
-                {/* Глянцевый эффект */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent rounded-2xl"></div>
-                
-                {/* Свечение */}
-                <div className="absolute -inset-4 bg-gradient-to-r from-red-600/20 to-red-800/20 rounded-3xl blur-lg -z-10"></div>
+          <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
+            <div className="flex flex-col lg:flex-row items-center min-h-[500px]">
+
+              {/* Левая часть - текст */}
+              <div className="lg:w-1/2 text-white mb-8 lg:mb-0">
+                <div className={`transition-all duration-700 transform ${isAnimating ? 'opacity-0 translate-x-[-50px]' : 'opacity-100 translate-x-0'
+                  }`}>
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 leading-tight">
+                    <span className="block">{current.title}</span>
+                    <span className="block text-red-400">{current.subtitle}</span>
+                  </h1>
+
+                  <p className="text-lg md:text-xl mb-8 text-gray-300 max-w-md">
+                    {current.description}
+                  </p>
+
+                  <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-600/30">
+                    {current.buttonText}
+                  </button>
+                </div>
+              </div>
+
+              {/* Правая часть - изображение */}
+              <div className="lg:w-1/2 relative">
+                <div className={`transition-all duration-700 transform ${isAnimating ? 'opacity-0 scale-95 rotate-2' : 'opacity-100 scale-100 rotate-0'
+                  }`}>
+                  <div className="relative max-w-lg mx-auto">
+                    <img
+                      src={current.image}
+                      alt={current.title}
+                      className="w-full h-auto rounded-2xl shadow-2xl"
+                    />
+
+                    {/* Глянцевый эффект */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent rounded-2xl"></div>
+
+                    {/* Свечение */}
+                    <div className="absolute -inset-4 bg-gradient-to-r from-red-600/20 to-red-800/20 rounded-3xl blur-lg -z-10"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Навигация */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-6">
-        
-        {/* Индикаторы */}
-        <div className="flex space-x-3">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                currentSlide === index 
-                  ? 'bg-white scale-125 shadow-lg' 
-                  : 'bg-white/40 hover:bg-white/60'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
+          {/* Навигация */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-6">
 
-      {/* Кнопки навигации */}
-      <button
-        onClick={prevSlide}
-        className="absolute left-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 rounded-full transition-all duration-300 hover:scale-110 border border-white/20"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      
-      <button
-        onClick={nextSlide}
-        className="absolute right-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 rounded-full transition-all duration-300 hover:scale-110 border border-white/20"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+            {/* Индикаторы */}
+            <div className="flex space-x-3">
+              {slides.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${currentSlide === index
+                    ? 'bg-white scale-125 shadow-lg'
+                    : 'bg-white/40 hover:bg-white/60'
+                    }`}
+                />
+              ))}
+            </div>
+          </div>
 
-     
+          {/* Кнопки навигации */}
+          <button
+            onClick={prevSlide}
+            className="absolute left-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 rounded-full transition-all duration-300 hover:scale-110 border border-white/20"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
 
-      {/* Градиент внизу */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/30 to-transparent"></div>
-    </section>
+          <button
+            onClick={nextSlide}
+            className="absolute right-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 rounded-full transition-all duration-300 hover:scale-110 border border-white/20"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+
+
+          {/* Градиент внизу */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/30 to-transparent"></div>
+        </section>
 
         {/* Categories */}
         <section className="py-12 md:py-16">
@@ -319,26 +313,26 @@ const Index = () => {
 
         {/* Brands */}
         <section className="py-12 md:py-16 bg-belek-gray">
-  <div className="container mx-auto px-4">
-    <h2 className="section-header">Наши бренды</h2>
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4 mt-8">
-      {brands.map((brand) => (
-        <div
-          key={brand.name}
-          className="bg-white rounded-lg p-4 flex flex-col items-center justify-center h-32 shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="w-full h-16 flex items-center justify-center overflow-hidden">
-            <img
-              src={brand.image}
-              alt={brand.name}
-              className="max-h-full max-w-full object-contain"
-            />
+          <div className="container mx-auto px-4">
+            <h2 className="section-header">Наши бренды</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4 mt-8">
+              {brands.map((brand) => (
+                <div
+                  key={brand.name}
+                  className="bg-white rounded-lg p-4 flex flex-col items-center justify-center h-32 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="w-full h-16 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={brand.image}
+                      alt={brand.name}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-     </div>
-      ))}
-    </div>
-  </div>
-</section>
+        </section>
 
 
         {/* Features */}
@@ -386,7 +380,7 @@ const Index = () => {
         </section>
       </main>
 
-      <Footer />
+      <Footer categories={categoriesData} />
     </div>
   );
 };
