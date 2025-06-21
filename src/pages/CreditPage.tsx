@@ -4,7 +4,7 @@ import { CreditCard } from "lucide-react";
 
 const CreditPage = () => (
   <div className="min-h-screen bg-white-900">
-    <Header />
+    
     <main className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold text-white mb-8 text-center">Кредит и рассрочка</h1>
       
@@ -45,7 +45,7 @@ const CreditPage = () => (
 
     
     </main>
-    <Footer />
+    
   </div>
 );
 

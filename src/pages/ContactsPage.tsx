@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Phone, Mail, MapPin, Clock, Package, Truck, Shield, Star, Users, Award, CheckCircle, ArrowRight } from 'lucide-react';
-import { Header } from '@/components/Header';
+
 import Footer from '@/components/Footer';
 
 // Компонент "Контакты"
 const ContactsPage = () => (
     <>
-    <Header />
+    
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-red-50">
         {/* Header */}
         <div className="bg-gradient-to-r from-black to-red-900 text-white py-16 px-6">
@@ -88,7 +88,7 @@ const ContactsPage = () => (
             </div>
         </div>
     </div>
-    <Footer />
+    
 </>);
 
 export default ContactsPage;

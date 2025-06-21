@@ -26,7 +26,6 @@ const Admin: React.FC = () => {
   }
 
   return (
-    <Layout>
       <div className="container mx-auto py-8">
         <AdminHeader onLogout={logout} />
 
@@ -71,7 +70,6 @@ const Admin: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
   );
 };
 

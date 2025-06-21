@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+
 
 const OrderConfirmation = () => {
   // Generate a random order number
@@ -9,7 +8,7 @@ const OrderConfirmation = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8 text-center">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
@@ -55,7 +54,7 @@ const OrderConfirmation = () => {
           </div>
         </div>
       </main>
-      <Footer />
+      
     </div>
   );
 };

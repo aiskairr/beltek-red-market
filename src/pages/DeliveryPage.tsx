@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Phone, Mail, MapPin, Clock, Package, Truck, Shield, Star, Users, Award, CheckCircle, ArrowRight } from 'lucide-react';
 import Footer from '@/components/Footer';
-import { Header } from '@/components/Header';
+
 
 // Компонент "Доставка"
 const DeliveryPage = () => {
@@ -52,7 +52,7 @@ const DeliveryPage = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-red-50">
-           <Header />
+           
             <div className="bg-gradient-to-r from-red-600 to-black text-white py-16 px-6">
                 <div className="max-w-6xl mx-auto text-center">
                     <h1 className="text-5xl font-bold mb-4">ДОСТАВКА И САМОВЫВОЗ</h1>
@@ -249,7 +249,7 @@ const DeliveryPage = () => {
                     </div>
                 </div>
             </div>
-            <Footer />
+            
         </div>
     );
 };

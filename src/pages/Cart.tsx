@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2 } from 'lucide-react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+
 import { useCart } from '@/hooks/use-cart';
 import { Button } from '@/components/ui/button';
 
@@ -11,7 +10,7 @@ const Cart = () => {
   if (items.length === 0) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        
         <main className="flex-1 container mx-auto px-4 py-8">
           <h1 className="text-2xl font-bold mb-8">Корзина</h1>
           <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -29,14 +28,14 @@ const Cart = () => {
             </Link>
           </div>
         </main>
-        <Footer />
+        
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      
       <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-8">Корзина</h1>
         
@@ -139,7 +138,7 @@ const Cart = () => {
           </div>
         </div>
       </main>
-      <Footer />
+      
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+
 import { ProductCard } from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/hooks/use-cart';
@@ -133,14 +132,9 @@ const Index = () => {
   };
 
   const current = slides[currentSlide];
-  if (CategoriesLoading) {
-    return (
-      <FullPageLoader />
-    )
-  }
+  
   return (
     <div className="min-h-screen flex flex-col">
-      <Header categories={categoriesData} />
 
       <main className="flex-1">
         {/* Hero Banner */}
@@ -172,7 +166,7 @@ const Index = () => {
                   </p>
 
                   <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-600/30">
-                    {current.buttonText}
+                    <Link to={current.buttonText}>Перейти</Link>
                   </button>
                 </div>
               </div>
@@ -380,7 +374,6 @@ const Index = () => {
         </section>
       </main>
 
-      <Footer categories={categoriesData} />
     </div>
   );
 };

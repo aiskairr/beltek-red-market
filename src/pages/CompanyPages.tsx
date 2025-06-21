@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Phone, Mail, MapPin, Clock, Package, Truck, Shield, Star, Users, Award, CheckCircle, ArrowRight } from 'lucide-react';
-import { Header } from '@/components/Header';
+
 import Footer from '@/components/Footer';
 
 // Компонент "О компании"
 const CompanyPage = () => {
     return (
         <>
-            <Header />
+            
             <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-red-50">
                 {/* Hero Section */}
                 <div className="bg-black text-white py-20 px-6 relative overflow-hidden">
@@ -117,7 +117,7 @@ const CompanyPage = () => {
                     </div>
                 </div>
             </div>
-            <Footer /></>)
+            </>)
 };
 
 

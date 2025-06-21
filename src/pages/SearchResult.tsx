@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+
 import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/hooks/use-cart';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -360,14 +359,14 @@ const SearchResults = () => {
   if (!searchQuery.trim()) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
             <div className="text-yellow-600 mb-2">⚠️ Пустой поисковый запрос</div>
             <div className="text-gray-700">Введите поисковый запрос для поиска товаров</div>
           </div>
         </main>
-        <Footer />
+       
       </div>
     );
   }
@@ -375,7 +374,7 @@ const SearchResults = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="flex justify-center items-center h-64">
             <div className="flex items-center space-x-2">
@@ -384,7 +383,7 @@ const SearchResults = () => {
             </div>
           </div>
         </main>
-        <Footer />
+       
       </div>
     );
   }
@@ -392,7 +391,7 @@ const SearchResults = () => {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <div className="text-red-600 mb-2">⚠️ Произошла ошибка</div>
@@ -408,14 +407,14 @@ const SearchResults = () => {
             </button>
           </div>
         </main>
-        <Footer />
+       
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
           <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
@@ -593,7 +592,7 @@ const SearchResults = () => {
           </div>
         </div>
       </main>
-      <Footer />
+     
     </div>
   );
 };

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ShoppingCart, Heart, ArrowLeft, Check, Minus, Plus, Truck, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -139,7 +138,7 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8">
           {/* Breadcrumbs */}
@@ -388,7 +387,7 @@ const ProductDetail = () => {
           )}
         </div>
       </main>
-      <Footer />
+      
     </div>
   );
 };

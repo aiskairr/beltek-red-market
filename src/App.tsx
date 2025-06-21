@@ -1,10 +1,11 @@
-
+// App.tsx (обновленный с вашим Layout)
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/hooks/use-cart";
+import { Layout } from "./components/Layout"; // используем ваш Layout
 import Index from "./pages/Index";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
@@ -31,23 +32,24 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/order-confirmation" element={<OrderConfirmation />} />
-            <Route path="/category/:categorySlug" element={<Category />} />
-             {/* Роут для категории с подкатегорией */}
-    <Route path="/category/:categorySlug/:subCategorySlug" element={<Category />} />
-            <Route path="/product/:productId" element={<ProductDetail />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/FAQpage" element={<FAQPage />} />
-            <Route path="/CreditPage" element={<CreditPage />} />
-            <Route path="/about" element={<CompanyPage />} />
-            <Route path="/delivery" element={<DeliveryPage />} />
-            <Route path="/contacts" element={<ContactsPage />} />
-            <Route path="*" element={<NotFound />} />
-            <Route path="login" element={<Login />} />
-            <Route path="/search" element={<SearchResults />} />
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Index />} />
+              <Route path="cart" element={<Cart />} />
+              <Route path="checkout" element={<Checkout />} />
+              <Route path="order-confirmation" element={<OrderConfirmation />} />
+              <Route path="category/:categorySlug" element={<Category />} />
+              <Route path="category/:categorySlug/:subCategorySlug" element={<Category />} />
+              <Route path="product/:productId" element={<ProductDetail />} />
+              <Route path="admin" element={<Admin />} />
+              <Route path="FAQpage" element={<FAQPage />} />
+              <Route path="CreditPage" element={<CreditPage />} />
+              <Route path="about" element={<CompanyPage />} />
+              <Route path="delivery" element={<DeliveryPage />} />
+              <Route path="contacts" element={<ContactsPage />} />
+              <Route path="login" element={<Login />} />
+              <Route path="search" element={<SearchResults />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Routes>
         </BrowserRouter>
       </CartProvider>
