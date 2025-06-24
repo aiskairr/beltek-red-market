@@ -60,7 +60,7 @@ const Cart = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-16 w-16">
-                              <img className="h-16 w-16 object-contain" src={item.image} alt={item.name} />
+                              <img className="h-16 w-16 object-contain" src={item.images} alt={item.name} />
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900">{item.name}</div>
