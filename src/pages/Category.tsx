@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 
 import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/hooks/use-cart';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { X, Filter } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const PRODUCTS_PER_PAGE = 9;
@@ -28,9 +30,13 @@ interface SubCategory {
   count: number;
 }
 
+// Ключ для localStorage
+const FILTERS_STORAGE_KEY = 'category_filters';
+
 const Category = () => {
   const { categorySlug = 'all', subCategorySlug } = useParams<{ categorySlug: string, subCategorySlug: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Добавляем недостающие состояния
   const [categories, setCategories] = useState<Category[]>([]);
@@ -60,14 +66,61 @@ const Category = () => {
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Функция для сохранения фильтров в localStorage
+  const saveFiltersToStorage = (filters: {
+    selectedBrands: string[];
+    priceRange: [number, number];
+    sortBy: string;
+    categorySlug: string;
+  }) => {
+    try {
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    } catch (error) {
+      console.warn('Не удалось сохранить фильтры:', error);
+    }
+  };
+
+  // Функция для загрузки фильтров из localStorage
+  const loadFiltersFromStorage = (currentCategorySlug: string) => {
+    try {
+      const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (saved) {
+        const filters = JSON.parse(saved);
+        // Применяем фильтры только для той же категории
+        if (filters.categorySlug === currentCategorySlug) {
+          return filters;
+        }
+      }
+    } catch (error) {
+      console.warn('Не удалось загрузить фильтры:', error);
+    }
+    return null;
+  };
+
+  // Функция для очистки фильтров из localStorage
+  const clearFiltersFromStorage = () => {
+    try {
+      localStorage.removeItem(FILTERS_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Не удалось очистить фильтры:', error);
+    }
+  };
+
   // Debounced функция для применения фильтра по цене
   const applyPriceFilter = useCallback(() => {
     const timeoutId = setTimeout(() => {
       setPriceRange(tempPriceRange);
+      // Сохраняем фильтры при изменении цены
+      saveFiltersToStorage({
+        selectedBrands,
+        priceRange: tempPriceRange,
+        sortBy,
+        categorySlug
+      });
     }, 800); // Задержка 800мс после последнего изменения
 
     return () => clearTimeout(timeoutId);
-  }, [tempPriceRange]);
+  }, [tempPriceRange, selectedBrands, sortBy, categorySlug]);
 
   // Применяем фильтр по цене с задержкой
   useEffect(() => {
@@ -115,101 +168,101 @@ const Category = () => {
     }
   };
 
- // Загрузка подкатегорий для текущей категории
-const fetchSubCategories = async () => {
-  if (categorySlug === 'all') {
-    setSubCategories([]);
-    return;
-  }
+  // Загрузка подкатегорий для текущей категории
+  const fetchSubCategories = async () => {
+    if (categorySlug === 'all') {
+      setSubCategories([]);
+      return;
+    }
 
-  try {
-    // Сначала пытаемся загрузить подкатегории из таблицы subcategories (если есть)
-    let subcategoriesFromTable = [];
-    
     try {
-      const { data: subcatData, error: subcatError } = await supabase
-        .from('subcategories')
-        .select('*')
-        .eq('category_slug', categorySlug)
-        .order('name');
+      // Сначала пытаемся загрузить подкатегории из таблицы subcategories (если есть)
+      let subcategoriesFromTable = [];
       
-      if (!subcatError && subcatData) {
-        subcategoriesFromTable = subcatData.map(subcat => ({
-          name: subcat.name,
-          slug: subcat.slug,
-          count: 0 // Инициализируем с 0, посчитаем позже
+      try {
+        const { data: subcatData, error: subcatError } = await supabase
+          .from('subcategories')
+          .select('*')
+          .eq('category_slug', categorySlug)
+          .order('name');
+        
+        if (!subcatError && subcatData) {
+          subcategoriesFromTable = subcatData.map(subcat => ({
+            name: subcat.name,
+            slug: subcat.slug,
+            count: 0 // Инициализируем с 0, посчитаем позже
+          }));
+        }
+      } catch (err) {
+        console.log('Таблица subcategories не найдена или недоступна, используем товары');
+      }
+
+      // Теперь загружаем товары для подсчета количества в каждой подкатегории
+      let productQuery = supabase
+        .from('products')
+        .select('mini_category');
+
+      // Фильтрация по категории
+      const decodedSlug = decodeURIComponent(categorySlug);
+      if (currentCategory && currentCategory.name) {
+        productQuery = productQuery.eq('category', currentCategory.name);
+      } else {
+        productQuery = productQuery.eq('category', decodedSlug);
+      }
+
+      const { data: productData, error: productError } = await productQuery;
+      
+      if (productError) throw productError;
+
+      // Считаем количество товаров в каждой подкатегории
+      const productCounts = {};
+      if (productData && productData.length > 0) {
+        productData.forEach(product => {
+          if (product.mini_category) {
+            productCounts[product.mini_category] = (productCounts[product.mini_category] || 0) + 1;
+          }
+        });
+      }
+
+      let finalSubCategories = [];
+
+      if (subcategoriesFromTable.length > 0) {
+        // Если есть подкатегории из таблицы, используем их и добавляем количество
+        finalSubCategories = subcategoriesFromTable.map(subcat => ({
+          ...subcat,
+          count: productCounts[subcat.name] || 0
+        }));
+
+        // Добавляем подкатегории из товаров, которых нет в таблице subcategories
+        Object.keys(productCounts).forEach(miniCategoryName => {
+          const exists = subcategoriesFromTable.some(subcat => subcat.name === miniCategoryName);
+          if (!exists) {
+            finalSubCategories.push({
+              name: miniCategoryName,
+              slug: miniCategoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+              count: productCounts[miniCategoryName]
+            });
+          }
+        });
+      } else {
+        // Если нет таблицы subcategories, создаем подкатегории только из товаров
+        finalSubCategories = Object.entries(productCounts).map(([name, count]) => ({
+          name,
+          slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+          count: count as number
         }));
       }
+
+      // Сортируем по названию
+      finalSubCategories.sort((a, b) => a.name.localeCompare(b.name));
+
+      setSubCategories(finalSubCategories);
+
     } catch (err) {
-      console.log('Таблица subcategories не найдена или недоступна, используем товары');
+      console.error('Ошибка загрузки подкатегорий:', err);
+      setSubCategories([]);
     }
-
-    // Теперь загружаем товары для подсчета количества в каждой подкатегории
-    let productQuery = supabase
-      .from('products')
-      .select('mini_category');
-
-    // Фильтрация по категории
-    const decodedSlug = decodeURIComponent(categorySlug);
-    if (currentCategory && currentCategory.name) {
-      productQuery = productQuery.eq('category', currentCategory.name);
-    } else {
-      productQuery = productQuery.eq('category', decodedSlug);
-    }
-
-    const { data: productData, error: productError } = await productQuery;
-    
-    if (productError) throw productError;
-
-    // Считаем количество товаров в каждой подкатегории
-    const productCounts = {};
-    if (productData && productData.length > 0) {
-      productData.forEach(product => {
-        if (product.mini_category) {
-          productCounts[product.mini_category] = (productCounts[product.mini_category] || 0) + 1;
-        }
-      });
-    }
-
-    let finalSubCategories = [];
-
-    if (subcategoriesFromTable.length > 0) {
-      // Если есть подкатегории из таблицы, используем их и добавляем количество
-      finalSubCategories = subcategoriesFromTable.map(subcat => ({
-        ...subcat,
-        count: productCounts[subcat.name] || 0
-      }));
-
-      // Добавляем подкатегории из товаров, которых нет в таблице subcategories
-      Object.keys(productCounts).forEach(miniCategoryName => {
-        const exists = subcategoriesFromTable.some(subcat => subcat.name === miniCategoryName);
-        if (!exists) {
-          finalSubCategories.push({
-            name: miniCategoryName,
-            slug: miniCategoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-            count: productCounts[miniCategoryName]
-          });
-        }
-      });
-    } else {
-      // Если нет таблицы subcategories, создаем подкатегории только из товаров
-      finalSubCategories = Object.entries(productCounts).map(([name, count]) => ({
-        name,
-        slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-        count: count as number
-      }));
-    }
-
-    // Сортируем по названию
-    finalSubCategories.sort((a, b) => a.name.localeCompare(b.name));
-
-    setSubCategories(finalSubCategories);
-
-  } catch (err) {
-    console.error('Ошибка загрузки подкатегорий:', err);
-    setSubCategories([]);
-  }
-};
+  };
 
   // Получение доступных брендов для категории
   const fetchAvailableBrands = async () => {
@@ -291,6 +344,7 @@ const fetchSubCategories = async () => {
         setMaxPrice(maxPriceValue);
         
         // Устанавливаем начальные значения только при первой загрузке категории
+        // или если фильтры не были загружены из localStorage
         if (priceRange[0] === 0 && priceRange[1] === 200000) {
           setPriceRange([minPriceValue, maxPriceValue]);
           setTempPriceRange([minPriceValue, maxPriceValue]);
@@ -443,6 +497,24 @@ const fetchSubCategories = async () => {
     fetchCategories();
   }, [categorySlug]);
 
+  // Загрузка сохраненных фильтров при изменении категории
+  useEffect(() => {
+    if (categorySlug) {
+      const savedFilters = loadFiltersFromStorage(categorySlug);
+      if (savedFilters) {
+        setSelectedBrands(savedFilters.selectedBrands || []);
+        setPriceRange(savedFilters.priceRange || [0, 200000]);
+        setTempPriceRange(savedFilters.priceRange || [0, 200000]);
+        setSortBy(savedFilters.sortBy || 'featured');
+      } else {
+        // Сбрасываем фильтры только если переходим на новую категорию
+        setSelectedBrands([]);
+        setSortBy('featured');
+        // Цены будут установлены в fetchProductsInfo
+      }
+    }
+  }, [categorySlug]);
+
   // Загрузка подкатегорий после загрузки категории
   useEffect(() => {
     if (currentCategory !== null) {
@@ -453,7 +525,7 @@ const fetchSubCategories = async () => {
   // Загрузка товаров после загрузки категории
   useEffect(() => {
     if (currentCategory !== null || categorySlug === 'all') {
-      // Сбрасываем фильтры при смене категории/подкатегории
+      // Сбрасываем пагинацию при смене категории/подкатегории
       setProducts([]);
       setCurrentPage(0);
       setHasMore(true);
@@ -489,11 +561,19 @@ const fetchSubCategories = async () => {
   }, [selectedBrands]);
 
   const handleBrandToggle = (brand: string) => {
-    setSelectedBrands(prev =>
-      prev.includes(brand)
-        ? prev.filter(b => b !== brand)
-        : [...prev, brand]
-    );
+    const newSelectedBrands = selectedBrands.includes(brand)
+      ? selectedBrands.filter(b => b !== brand)
+      : [...selectedBrands, brand];
+    
+    setSelectedBrands(newSelectedBrands);
+    
+    // Сохраняем фильтры
+    saveFiltersToStorage({
+      selectedBrands: newSelectedBrands,
+      priceRange,
+      sortBy,
+      categorySlug
+    });
   };
 
   const handleLoadMore = () => {
@@ -510,6 +590,13 @@ const fetchSubCategories = async () => {
   // Кнопка для мгновенного применения фильтра по цене
   const applyPriceFilterNow = () => {
     setPriceRange(tempPriceRange);
+    // Сохраняем фильтры
+    saveFiltersToStorage({
+      selectedBrands,
+      priceRange: tempPriceRange,
+      sortBy,
+      categorySlug
+    });
   };
 
   // Фильтруем бренды по тем, что доступны в текущей категории
@@ -521,6 +608,21 @@ const fetchSubCategories = async () => {
     setPriceRange(resetRange);
     setTempPriceRange(resetRange);
     setSortBy('featured');
+    
+    // Очищаем сохраненные фильтры
+    clearFiltersFromStorage();
+  };
+
+  // Обработчик изменения сортировки
+  const handleSortChange = (newSortBy: string) => {
+    setSortBy(newSortBy);
+    // Сохраняем фильтры
+    saveFiltersToStorage({
+      selectedBrands,
+      priceRange,
+      sortBy: newSortBy,
+      categorySlug
+    });
   };
 
   // Функция для перехода к подкатегории
@@ -533,10 +635,67 @@ const fetchSubCategories = async () => {
     navigate(`/category/${categorySlug}`);
   };
 
+  // Компонент фильтров
+  const FiltersContent = () => (
+    <div className="bg-white rounded-lg shadow divide-y">
+      <div className="p-4">
+        <h3 className="font-medium mb-4">Цена</h3>
+        <div className="px-2">
+          <Slider
+            defaultValue={[minPrice, maxPrice]}
+            value={tempPriceRange}
+            onValueChange={handlePriceChange}
+            min={minPrice}
+            max={maxPrice}
+            step={1000}
+            className="mb-4"
+          />
+          <div className="flex justify-between text-sm mb-3">
+            <span>{tempPriceRange[0].toLocaleString()} с</span>
+            <span>{tempPriceRange[1].toLocaleString()} с</span>
+          </div>
+          
+          {/* Показываем диапазон доступных цен */}
+          <div className="flex justify-between text-xs text-gray-500 mb-3">
+            <span>Мин: {minPrice.toLocaleString()} с</span>
+            <span>Макс: {maxPrice.toLocaleString()} с</span>
+          </div>
+          
+          {/* Показываем кнопку применения только если есть изменения */}
+          {(tempPriceRange[0] !== priceRange[0] || tempPriceRange[1] !== priceRange[1]) && (
+            <button
+              onClick={applyPriceFilterNow}
+              className="w-full bg-blue-600 text-white text-sm py-2 px-3 rounded hover:bg-blue-700 transition-colors"
+            >
+              Применить
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="p-4">
+        <h3 className="font-medium mb-4">Бренд</h3>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {availableBrands.map(brand => (
+            <div key={brand.id} className="flex items-center">
+              <Checkbox
+                id={`brand-${brand.id}`}
+                checked={selectedBrands.includes(brand.name)}
+                onCheckedChange={() => handleBrandToggle(brand.name)}
+              />
+              <Label htmlFor={`brand-${brand.id}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                {brand.name}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="flex justify-center items-center h-64">
             <div className="flex items-center space-x-2">
@@ -545,7 +704,6 @@ const fetchSubCategories = async () => {
             </div>
           </div>
         </main>
-        
       </div>
     );
   }
@@ -553,7 +711,6 @@ const fetchSubCategories = async () => {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col">
-        
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <div className="text-red-600 mb-2">⚠️ Произошла ошибка</div>
@@ -569,14 +726,12 @@ const fetchSubCategories = async () => {
             </button>
           </div>
         </main>
-        
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col">
-      
       <main className="flex-1 container mx-auto px-4 py-8">
         {/* Хлебные крошки */}
         <nav className="mb-4 text-sm">
@@ -645,7 +800,7 @@ const fetchSubCategories = async () => {
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Фильтры */}
-          <div className="lg:w-1/4 hidden lg:block">
+          <div className={`lg:w-1/4 ${mobileFiltersOpen ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-lg shadow divide-y">
             <div className="p-4">
   <h3 className="font-medium mb-4">Цена</h3>

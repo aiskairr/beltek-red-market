@@ -41,25 +41,7 @@ const Index = () => {
     fetchFeaturedProducts();
   }, []);
 
-  const [categories, setCategories] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .order("category", { ascending: true });
-
-      if (error) {
-        console.error("Ошибка загрузки категорий:", error.message);
-      } else {
-        setCategories(data || []);
-
-      }
-    };
-
-    fetchCategories();
-  }, [])
+ 
   const slides = [
     {
       id: 1,
@@ -240,24 +222,36 @@ const Index = () => {
         <section className="py-12 md:py-16">
           <div className="container mx-auto px-4">
             <h2 className="section-header">Популярные категории</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {categories.map((category) => (
-                <Link
-                  key={category.category}
-                  to={`/category/${category.category}`}
-                  className="bg-belek-gray rounded-lg p-4 text-center transition-transform hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="aspect-square bg-white rounded-lg flex items-center justify-center mb-3 overflow-hidden">
-                    <img
-                      src={category.image}
-                      alt={"Картинка"}
-                      className="w-full h-full object-cover"
-                    />
+            
+            {CategoriesLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-belek-gray rounded-lg p-4 animate-pulse">
+                    <div className="aspect-square bg-gray-300 rounded-lg mb-3"></div>
+                    <div className="h-4 bg-gray-300 rounded"></div>
                   </div>
-                  <h3 className="font-medium">{category.category}</h3>
-                </Link>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {categoriesData.map((category) => (
+                  <Link
+                    key={category.category}
+                    to={`/category/${category.category}`}
+                    className="bg-belek-gray rounded-lg p-4 text-center transition-transform hover:-translate-y-1 hover:shadow-md"
+                  >
+                    <div className="aspect-square bg-white rounded-lg flex items-center justify-center mb-3 overflow-hidden">
+                      <img
+                        src={category.image}
+                        alt={"Картинка"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <h3 className="font-medium">{category.category}</h3>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

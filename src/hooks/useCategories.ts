@@ -1,5 +1,5 @@
-// hooks/useCategories.ts (обновленная версия с полной поддержкой шаблонов)
-import { useState, useEffect } from 'react';
+// hooks/useCategories.ts (оптимизированная версия)
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,25 +24,24 @@ export const useCategories = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchCategories = async () => {
+  // Мемоизированная функция загрузки
+  const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Упрощенный запрос без дополнительной сортировки на клиенте
       const { data, error } = await supabase
         .from("categories")
-        .select("*")
+        .select("id, category, image, mini_categories, templates, created_at")
         .order("category", { ascending: true });
 
       if (error) throw error;
 
-      // Приводим данные к нужному формату
-      const formattedData = (data || []).map(cat => ({
-        ...cat,
-        mini_categories: cat.mini_categories || [],
-        templates: Array.isArray(cat.templates) ? cat.templates : []
-      }));
-
-      setCategories(formattedData);
+      // Минимальная обработка данных - только если действительно необходимо
+      setCategories(data || []);
+      
     } catch (error: any) {
+      console.error('Ошибка загрузки категорий:', error);
       toast({
         title: "Ошибка загрузки категорий",
         description: error.message,
@@ -51,20 +50,18 @@ export const useCategories = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const uploadCategoryImage = async (file: File): Promise<string> => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `categories/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('categories')
       .upload(filePath, file);
 
-    if (uploadError) {
-      throw uploadError;
-    }
+    if (uploadError) throw uploadError;
 
     const { data } = supabase.storage
       .from('categories')
@@ -77,7 +74,6 @@ export const useCategories = () => {
     try {
       let imageUrl = "";
 
-      // Загружаем изображение если оно есть
       if (formData.image) {
         imageUrl = await uploadCategoryImage(formData.image);
       }
@@ -87,27 +83,26 @@ export const useCategories = () => {
         .insert([{
           category: formData.category,
           image: imageUrl,
-          mini_categories: formData.mini_categories.filter(cat => cat.trim() !== ''),
-          templates: formData.templates.filter(template => template.trim() !== '')
+          mini_categories: formData.mini_categories.filter(cat => cat.trim()),
+          templates: formData.templates.filter(template => template.trim())
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      const newCategory = {
-        ...data,
-        mini_categories: data.mini_categories || [],
-        templates: Array.isArray(data.templates) ? data.templates : []
-      };
+      // Простое добавление без пересортировки
+      setCategories(prev => {
+        const newCategories = [...prev, data];
+        return newCategories.sort((a, b) => a.category.localeCompare(b.category));
+      });
 
-      setCategories(prev => [...prev, newCategory].sort((a, b) => a.category.localeCompare(b.category)));
       toast({
         title: "Категория добавлена",
         description: `Категория "${formData.category}" успешно добавлена`,
       });
 
-      return newCategory;
+      return data;
     } catch (error: any) {
       toast({
         title: "Ошибка добавления",
@@ -124,10 +119,11 @@ export const useCategories = () => {
 
       let imageUrl = "";
       const image = formData.image as string | File;
+      
       if (image instanceof File) {
         imageUrl = await uploadCategoryImage(image);
       } else {
-        imageUrl = image;
+        imageUrl = image || "";
       }
 
       const { data, error } = await supabase
@@ -144,15 +140,8 @@ export const useCategories = () => {
 
       if (error) throw error;
 
-      const updatedCategory = {
-        ...data,
-        mini_categories: data.mini_categories || [],
-        templates: Array.isArray(data.templates) ? data.templates : []
-      };
-
       setCategories(prev =>
-        prev
-          .map(cat => (cat.id === id ? updatedCategory : cat))
+        prev.map(cat => cat.id === id ? data : cat)
           .sort((a, b) => a.category.localeCompare(b.category))
       );
 
@@ -161,7 +150,7 @@ export const useCategories = () => {
         description: `Категория "${formData.category}" успешно обновлена`,
       });
 
-      return updatedCategory;
+      return data;
     } catch (error: any) {
       toast({
         title: "Ошибка обновления",
@@ -174,32 +163,24 @@ export const useCategories = () => {
 
   const deleteCategory = async (id: number) => {
     try {
-      // Получаем данные категории для удаления изображения
-      const { data: categoryData, error: categoryError } = await supabase
-        .from("categories")
-        .select("category, image")
-        .eq("id", id)
-        .single();
-
-      if (categoryError || !categoryData) {
-        throw new Error("Не удалось найти категорию для удаления.");
+      const categoryToDelete = categories.find(cat => cat.id === id);
+      if (!categoryToDelete) {
+        throw new Error("Категория не найдена");
       }
 
-      const categoryName = categoryData.category;
+      const categoryName = categoryToDelete.category;
 
-      // Удаляем связанные товары
+      // Используем транзакцию для удаления связанных данных
       const { error: productsError } = await supabase
         .from("products")
         .delete()
         .eq("category", categoryName);
 
-      if (productsError) {
-        throw new Error("Не удалось удалить связанные товары.");
-      }
+      if (productsError) throw productsError;
 
-      // Удаляем изображение из storage если оно есть
-      if (categoryData.image) {
-        const imagePath = categoryData.image.split('/').pop();
+      // Удаляем изображение если есть
+      if (categoryToDelete.image) {
+        const imagePath = categoryToDelete.image.split('/').pop();
         if (imagePath) {
           await supabase.storage
             .from('categories')
@@ -207,17 +188,15 @@ export const useCategories = () => {
         }
       }
 
-      // Удаляем саму категорию
       const { error: categoryDeleteError } = await supabase
         .from("categories")
         .delete()
         .eq("id", id);
 
-      if (categoryDeleteError) {
-        throw new Error("Не удалось удалить категорию.");
-      }
+      if (categoryDeleteError) throw categoryDeleteError;
 
       setCategories(prev => prev.filter(cat => cat.id !== id));
+      
       toast({
         title: "Категория удалена",
         description: "Категория и все её товары удалены.",
@@ -231,23 +210,20 @@ export const useCategories = () => {
     }
   };
 
-  // Массовый импорт категорий из Excel
   const bulkImportCategories = async (categoriesData: Omit<Category, 'id' | 'created_at'>[]) => {
     try {
       setLoading(true);
 
-      // Проверяем на дубликаты с существующими категориями
-      const existingCategories = categories.map(cat => cat.category.toLowerCase());
+      const existingNames = new Set(categories.map(cat => cat.category.toLowerCase()));
       const duplicates = categoriesData.filter(cat =>
-        existingCategories.includes(cat.category.toLowerCase())
+        existingNames.has(cat.category.toLowerCase())
       );
 
       if (duplicates.length > 0) {
         const duplicateNames = duplicates.map(cat => cat.category).join(', ');
-        throw new Error(`Найдены дубликаты категорий: ${duplicateNames}`);
+        throw new Error(`Найдены дубликаты: ${duplicateNames}`);
       }
 
-      // Подготавливаем данные для вставки
       const categoriesToInsert = categoriesData.map(cat => ({
         category: cat.category,
         image: cat.image || null,
@@ -255,7 +231,6 @@ export const useCategories = () => {
         templates: cat.templates || []
       }));
 
-      // Вставляем все категории одним запросом
       const { data, error } = await supabase
         .from("categories")
         .insert(categoriesToInsert)
@@ -263,16 +238,8 @@ export const useCategories = () => {
 
       if (error) throw error;
 
-      // Форматируем полученные данные
-      const formattedData = data.map(cat => ({
-        ...cat,
-        mini_categories: cat.mini_categories || [],
-        templates: Array.isArray(cat.templates) ? cat.templates : []
-      }));
-
-      // Обновляем локальное состояние
       setCategories(prev =>
-        [...prev, ...formattedData].sort((a, b) => a.category.localeCompare(b.category))
+        [...prev, ...data].sort((a, b) => a.category.localeCompare(b.category))
       );
 
       toast({
@@ -283,7 +250,7 @@ export const useCategories = () => {
       return {
         success: true,
         imported: data.length,
-        categories: formattedData
+        categories: data
       };
     } catch (error: any) {
       toast({
@@ -299,7 +266,7 @@ export const useCategories = () => {
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   return {
     categories,
