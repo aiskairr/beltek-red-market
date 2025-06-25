@@ -7,11 +7,11 @@ import { FullPageLoader } from './Preloader';
 
 export const Layout: React.FC = () => {
     const { categories: categoriesData, loading: CategoriesLoading } = useCategories();
-    if (CategoriesLoading) {
-        return (
-          <FullPageLoader />
-        )
-      }
+    // if (CategoriesLoading) {
+    //     return (
+    //       <FullPageLoader />
+    //     )
+    //   }
   return (
     <div className="flex flex-col min-h-screen">
       <Header categories={categoriesData} />

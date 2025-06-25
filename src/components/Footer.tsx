@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Phone, Mail, MapPin } from 'lucide-react';
-import { useCategories } from '@/hooks/useCategories';
 
 export const Footer = ({categories}:any) => {
   return (

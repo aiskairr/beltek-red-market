@@ -1,7 +1,4 @@
 // components/admin/CategoriesTab.tsx (обновленная версия)
-import { CategoryForm } from './CategoryForm';
-import { CategoriesTable } from './CategoriesTable';
-import { useCategories } from '../../hooks/useCategories';
 import { BrandForm } from './BrandsForm';
 import { BrandsTable } from './BrandsTable';
 import { useBrands } from '@/hooks/useBrands';

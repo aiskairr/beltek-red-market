@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Upload, X } from "lucide-react";
-import { CategoryFormData } from '../../hooks/useCategories';
 import { BrandFormData } from '@/hooks/useBrands';
 
 interface BrandFormProps {

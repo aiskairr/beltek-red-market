@@ -4,7 +4,6 @@ import { Menu, Search, ShoppingCart, User, X, ChevronDown, ChevronUp, Phone, Mai
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/use-cart";
 import { supabase } from "@/lib/supabase";
-import { useCategories } from "@/hooks/useCategories";
 
 export const Header = ({ categories }: any) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
