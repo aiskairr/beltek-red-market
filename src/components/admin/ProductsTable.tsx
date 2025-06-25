@@ -5,23 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Edit, Trash, Image as ImageIcon, X, Plus, Minus, Upload } from "lucide-react";
 import { Category } from '@/hooks/useCategories';
 import { Brand } from '@/hooks/useBrands';
+import { FormControl, FormField, FormItem, FormLabel } from '../ui/form';
 
 // Интерфейс для шаблонов (заменяет characteristics)
 interface Template {
@@ -42,6 +43,7 @@ interface Product {
   templates?: Template[]; // Заменили characteristics на templates
   category_id?: number;
   created_at?: string;
+  in_stock: boolean | null;
 }
 
 interface ProductsTableProps {
@@ -54,14 +56,14 @@ interface ProductsTableProps {
   availableTemplates?: string[]; // Изменено: массив строк для названий шаблонов
 }
 
-export const ProductsTable = ({ 
-  products, 
-  onDelete, 
-  onEdit, 
-  categories, 
-  brands, 
+export const ProductsTable = ({
+  products,
+  onDelete,
+  onEdit,
+  categories,
+  brands,
   loading = false,
-  availableTemplates = [] 
+  availableTemplates = []
 }: ProductsTableProps) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,7 +73,8 @@ export const ProductsTable = ({
     price: '',
     brand: '',
     category: '',
-    mini_category: ''
+    mini_category: '',
+    in_stock: false
   });
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -83,7 +86,7 @@ export const ProductsTable = ({
     if (formData.category) {
       const category = categories.find(cat => cat.category === formData.category);
       setSelectedCategory(category || null);
-      
+
       // Сбрасываем мини-категорию при смене основной категории
       if (category && formData.mini_category) {
         const hasMiniCategory = category.mini_categories?.includes(formData.mini_category);
@@ -109,6 +112,7 @@ export const ProductsTable = ({
       brand: product.brand,
       category: product.category,
       mini_category: product.mini_category || '',
+      in_stock: product.in_stock,
     });
     setTemplates(product.templates || []); // Используем templates вместо characteristics
     setImages(product.images || []);
@@ -118,7 +122,7 @@ export const ProductsTable = ({
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
-    setFormData({ name: '', description: '', price: '', brand: '', category: '', mini_category: '' });
+    setFormData({ name: '', description: '', price: '', brand: '', category: '', mini_category: '', in_stock: false });
     setTemplates([]);
     setImages([]);
     setSelectedCategory(null);
@@ -129,11 +133,11 @@ export const ProductsTable = ({
     const files = e.target.files;
     if (files) {
       const fileArray = Array.from(files);
-      
+
       // Ограничиваем количество изображений до 6
       const availableSlots = 6 - images.length;
       const filesToProcess = fileArray.slice(0, availableSlots);
-      
+
       filesToProcess.forEach(file => {
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -182,8 +186,8 @@ export const ProductsTable = ({
 
   // Исправленная функция обновления шаблона
   const updateTemplate = (index: number, field: 'template' | 'value', value: string) => {
-    setTemplates(prev => 
-      prev.map((template, i) => 
+    setTemplates(prev =>
+      prev.map((template, i) =>
         i === index ? { ...template, [field]: value } : template
       )
     );
@@ -215,9 +219,11 @@ export const ProductsTable = ({
         category: formData.category,
         mini_category: formData.mini_category,
         templates: validTemplates, // Используем templates
+        in_stock: formData.in_stock
       };
+      console.log(updatedProduct)
       onEdit(editingProduct.id, updatedProduct);
-      handleModalClose();
+      // handleModalClose();
     }
   };
 
@@ -345,7 +351,7 @@ export const ProductsTable = ({
                     {formatPrice(product.price)}
                   </TableCell>
                   <TableCell>
-                    {product.created_at 
+                    {product.created_at
                       ? new Date(product.created_at).toLocaleDateString('ru-RU')
                       : '-'
                     }
@@ -353,7 +359,7 @@ export const ProductsTable = ({
                   <TableCell className="text-right">
                     <div className="flex justify-end space-x-2">
                       {onEdit && (
-                        <Button 
+                        <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditClick(product)}
@@ -388,7 +394,7 @@ export const ProductsTable = ({
           <DialogHeader>
             <DialogTitle>Редактировать товар</DialogTitle>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="product-name">Название товара</Label>
@@ -400,6 +406,24 @@ export const ProductsTable = ({
                 placeholder="Введите название товара"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product-stock-select" className="text-sm font-medium">
+                Статус наличия
+              </Label>
+              <select
+                id="product-stock-select"
+                onChange={(e) => setFormData(prev => ({ ...prev, in_stock: e.target.value === 'true' ? true : false }))}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                defaultValue={""}
+              >
+                <option value="" disabled>
+                  Выберите статус
+                </option>
+                <option value="true">✅ В наличии</option>
+                <option value="false">❌ Нет в наличии</option>
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -417,7 +441,7 @@ export const ProductsTable = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="product-category">Категория</Label>
-                <Select 
+                <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
                 >
@@ -437,15 +461,15 @@ export const ProductsTable = ({
 
               <div className="space-y-2">
                 <Label htmlFor="product-mini-category">Мини-категория</Label>
-                <Select 
+                <Select
                   value={formData.mini_category}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, mini_category: value }))}
                   disabled={!selectedCategory || !selectedCategory.mini_categories?.length}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={
-                      !selectedCategory 
-                        ? "Сначала выберите категорию" 
+                      !selectedCategory
+                        ? "Сначала выберите категорию"
                         : !selectedCategory.mini_categories?.length
                           ? "Нет мини-категорий"
                           : "Выберите мини-категорию"
@@ -465,7 +489,7 @@ export const ProductsTable = ({
 
             <div className="space-y-2">
               <Label htmlFor="product-brand">Бренд</Label>
-              <Select 
+              <Select
                 value={formData.brand}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, brand: value }))}
               >
@@ -530,7 +554,7 @@ export const ProductsTable = ({
                   </Button>
                 </div>
               </div>
-            
+
               <div className="space-y-3 max-h-60 overflow-y-auto border rounded-lg p-3">
                 {templates.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
@@ -591,7 +615,7 @@ export const ProductsTable = ({
                   {images.length}/6 изображений
                 </div>
               </div>
-              
+
               {/* Загрузка изображений */}
               {images.length < 6 && (
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
@@ -657,7 +681,7 @@ export const ProductsTable = ({
                   ))}
                 </div>
               )}
-              
+
               {images.length > 0 && (
                 <p className="text-sm text-gray-500">
                   Перетащите изображения для изменения порядка. Первое изображение будет главным.

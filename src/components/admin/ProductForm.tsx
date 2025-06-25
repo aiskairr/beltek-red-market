@@ -34,6 +34,7 @@ interface ProductFormData {
     mini_category: string;
     description: string;
     brand: string;
+    in_stock: boolean;
     characteristics: Characteristic[];
     templates: { template: string; value: string }[];
 }
@@ -51,6 +52,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
             category: "",
             mini_category: "",
             description: "",
+            in_stock: true, // По умолчанию товар в наличии
             characteristics: [],
             templates: []
         }
@@ -179,6 +181,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                 brand: data.brand,
                 description: data.description,
                 price: numericPrice,
+                in_stock: data.in_stock, // Добавляем поле наличия товара
                 images: imageUrls, // Массив URL изображений
                 image: imageUrls[0] || "", // Основное изображение для обратной совместимости
                 characteristics: filteredCharacteristics,
@@ -350,6 +353,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                                 ))}
                                             </select>
                                         </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Поле наличия товара */}
+                            <FormField
+                                control={form.control}
+                                name="in_stock"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center space-x-3 space-y-0 pt-8">
+                                        <FormControl>
+                                            <input
+                                                type="checkbox"
+                                                checked={field.value}
+                                                onChange={field.onChange}
+                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="text-sm font-medium cursor-pointer">
+                                            Товар в наличии
+                                        </FormLabel>
                                     </FormItem>
                                 )}
                             />

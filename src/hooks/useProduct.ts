@@ -202,7 +202,8 @@ export const useProducts = (initialPageSize: number = DEFAULT_PAGE_SIZE) => {
         brand: formData.brand,
         category: formData.category,
         mini_category: formData.mini_category || null,
-        templates: formData.templates || [] // Заменили characteristics на templates
+        templates: formData.templates || [] ,// Заменили characteristics на templates
+        in_stock: formData.in_stock
       };
 
       const { data, error } = await supabase

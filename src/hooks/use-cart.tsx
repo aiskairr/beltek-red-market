@@ -6,11 +6,12 @@ export interface Product {
   id: string;
   name: string;
   brand: string;
+  in_stock: boolean;
   price: number;
   images: string;
   category: string;
   description: string;
-   templates?: Array<{
+  templates?: Array<{
     template: string;
     value: string;
   }>;
@@ -65,11 +66,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const addItem = (product: Product, quantity = 1) => {
     setItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.id === product.id);
-      
+
       if (existingItem) {
         toast.success(`Количество ${product.name} обновлено в корзине`);
-        return prevItems.map((item) => 
-          item.id === product.id 
+        return prevItems.map((item) =>
+          item.id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
@@ -92,7 +93,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateQuantity = (id: string, quantity: number) => {
     if (quantity < 1) return;
-    
+
     setItems((prevItems) =>
       prevItems.map((item) =>
         item.id === id ? { ...item, quantity } : item

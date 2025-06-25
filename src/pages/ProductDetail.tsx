@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ShoppingCart, Heart, ArrowLeft, Check, Minus, Plus, Truck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Heart, ArrowLeft, Check, Minus, Plus, Truck, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -138,7 +138,7 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      
+
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8">
           {/* Breadcrumbs */}
@@ -194,6 +194,7 @@ const ProductDetail = () => {
                     </>
                   )}
 
+
                   {/* Image counter */}
                   {productImages.length > 1 && (
                     <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm">
@@ -210,8 +211,8 @@ const ProductDetail = () => {
                         key={index}
                         onClick={() => setSelectedImageIndex(index)}
                         className={`flex-shrink-0 w-20 h-20 bg-belek-gray rounded-lg p-2 border-2 transition-all duration-200 ${selectedImageIndex === index
-                            ? 'border-belek-red'
-                            : 'border-transparent hover:border-gray-300'
+                          ? 'border-belek-red'
+                          : 'border-transparent hover:border-gray-300'
                           }`}
                       >
                         <img
@@ -252,9 +253,14 @@ const ProductDetail = () => {
 
                 {/* Stock and Delivery */}
                 <div className="flex items-center text-sm mb-6">
-                  <div className="flex items-center text-green-600 mr-4">
-                    <Check size={16} className="mr-1" />
-                    <span>В наличии</span>
+                   <div className={`flex items-center gap-1 text-sm font-medium mr-5 ${product.in_stock ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                    {product.in_stock ? (
+                      <CheckCircle size={16} className="text-green-500" />
+                    ) : (
+                      <XCircle size={16} className="text-red-500" />
+                    )}
+                    <span>{product.in_stock ? 'В наличии' : 'Нет в наличии'}</span>
                   </div>
                   <div className="flex items-center text-gray-600">
                     <Truck size={16} className="mr-1" />
@@ -349,7 +355,7 @@ const ProductDetail = () => {
                 {product.description}
               </p>
             </TabsContent>
-             <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">
+            <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">
               {/* Отображение templates */}
               {product.templates && product.templates.length > 0 && (
                 <div>
@@ -387,7 +393,7 @@ const ProductDetail = () => {
           )}
         </div>
       </main>
-      
+
     </div>
   );
 };
