@@ -18,7 +18,7 @@ const Index = () => {
 
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { brands } = useBrands()
+  // const { brands } = useBrands()
   const { categories: categoriesData, loading: CategoriesLoading } = useCategories();
 
   useEffect(() => {
@@ -310,7 +310,7 @@ const Index = () => {
           <div className="container mx-auto px-4">
             <h2 className="section-header">Наши бренды</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4 mt-8">
-              {brands.map((brand) => (
+              {[].map((brand) => (
                 <div
                   key={brand.name}
                   className="bg-white rounded-lg p-4 flex flex-col items-center justify-center h-32 shadow-sm hover:shadow-md transition-shadow"
