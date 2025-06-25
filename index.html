@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
   <head>
@@ -7,20 +6,356 @@
     <title>Белек Техника - Бытовая техника в Кыргызстане</title>
     <meta name="description" content="Купить бытовую технику в Кыргызстане. Широкий выбор техники от ведущих производителей: LG, Samsung, Ferre, Midea и других. Доставка по всему Кыргызстану." />
     <meta name="author" content="Белек Техника" />
-<meta name="google-site-verification" content="ygPdR877BVB5n9pToFOzkEjR-25XdcCBSYmWV1CHz8U" />
+    <meta name="google-site-verification" content="ygPdR877BVB5n9pToFOzkEjR-25XdcCBSYmWV1CHz8U" />
     <meta property="og:title" content="Белек Техника - Бытовая техника в Кыргызстане" />
     <meta property="og:description" content="Купить бытовую технику в Кыргызстане. Широкий выбор техники от ведущих производителей: LG, Samsung, Ferre, Midea и других." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/og-image.jpg" />
-
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@belek_technika" />
     <meta name="twitter:image" content="/og-image.jpg" />
     <link rel="icon" type="image/png" href="/public/favicon.png" />
+    
+    <style>
+      /* Стили для кнопок связи */
+      .contact-buttons {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .toggle-button {
+        background: linear-gradient(135deg, #ea6666 0%, #a24b4b 100%);
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        right: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        order: -1;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .toggle-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+      }
+      
+      .toggle-button:hover::before {
+        left: 100%;
+        
+      }
+      
+      .toggle-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.25);
+      }
+      
+      .toggle-button.active {
+        background: linear-gradient(135deg, #fb9393 0%, #f55757 100%);
+        transform: rotate(180deg);
+      }
+      
+      .contact-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        opacity: 1;
+        transform: translateY(0);
+        transition: all 0.3s ease;
+        max-height: 500px;
+        overflow: hidden;
+      }
+      
+      .contact-groups.hidden {
+        opacity: 0;
+        transform: translateY(-20px);
+        max-height: 0;
+        margin: 0;
+        padding: 0;
+      }
+      
+      .contact-group {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        padding: 15px;
+        min-width: 280px;
+        border: 1px solid #e0e0e0;
+      }
+      
+      .contact-group h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+        text-align: center;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 8px;
+      }
+      
+      .contact-buttons-row {
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      
+      .contact-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        text-decoration: none;
+        color: white;
+        transition: all 0.3s ease;
+        font-size: 18px;
+        position: relative;
+      }
+      
+      .contact-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+      
+      .whatsapp {
+        background: #25D366;
+      }
+      
+      .telegram {
+        background: #0088cc;
+      }
+      
+      .phone {
+        background: #4CAF50;
+      }
+      
+      .phone-number {
+        font-size: 12px;
+        font-weight: 500;
+        color: #666;
+        text-align: center;
+        margin-top: 5px;
+        font-family: monospace;
+      }
+      
+      .contact-btn::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        margin-bottom: 5px;
+      }
+      
+      .contact-btn:hover::after {
+        opacity: 1;
+      }
+      
+      /* Иконки SVG */
+      .icon {
+        width: 24px;
+        height: 24px;
+        fill: currentColor;
+      }
+      
+      /* Адаптивность */
+      @media (max-width: 768px) {
+        .contact-buttons {
+          bottom: 15px;
+          left: 15px;
+        }
+        
+        .toggle-button {
+          width: 50px;
+          height: 50px;
+          font-size: 20px;
+        }
+        
+        .contact-group {
+          min-width: 260px;
+          padding: 12px;
+        }
+        
+        .contact-btn {
+          width: 40px;
+          height: 40px;
+          font-size: 16px;
+        }
+        
+        .icon {
+          width: 20px;
+          height: 20px;
+        }
+      }
+      
+      /* Анимация появления */
+      .contact-buttons {
+        animation: slideInLeft 0.5s ease-out;
+      }
+      
+      @keyframes slideInLeft {
+        from {
+          transform: translateX(-100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      /* Анимация пульсации для кнопки toggle */
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        50% {
+          box-shadow: 0 4px 20px rgba(234, 102, 102, 0.356);
+        }
+        100% {
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+      }
+      
+      .toggle-button:not(.active) {
+        animation: pulse 2s infinite;
+      }
+    </style>
   </head>
 
   <body>
     <div id="root"></div>
+    
+    <!-- Кнопки связи -->
+    <div class="contact-buttons">
+      <!-- Кнопка переключения -->
+      <button class="toggle-button" id="toggleButton">
+        ✉️
+      </button>
+      
+      <!-- Контейнер с группами контактов -->
+      <div class="contact-groups hidden" id="contactGroups">
+        <!-- Филиал 1 -->
+        <div class="contact-group">
+          <h4>📍 Беш Сары</h4>
+          <div class="contact-buttons-row">
+            <a href="https://wa.me/996226240808" class="contact-btn whatsapp" data-tooltip="WhatsApp" target="_blank">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.485 3.516z"/>
+              </svg>
+            </a>
+            
+            <a href="https://t.me/+996226240808" class="contact-btn telegram" data-tooltip="Telegram" target="_blank">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+              </svg>
+            </a>
+            
+            <a href="tel:+996226240808" class="contact-btn phone" data-tooltip="Позвонить" target="_blank">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+              </svg>
+            </a>
+          </div>
+          <div class="phone-number">+996 (226) 24-08-08</div>
+        </div>
+        
+        <!-- Филиал 2 -->
+        <div class="contact-group">
+          <h4>📍 Аю Гранд</h4>
+          <div class="contact-buttons-row">
+            <a href="https://wa.me/996557240808" class="contact-btn whatsapp" data-tooltip="WhatsApp" target="_blank">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.485 3.516z"/>
+              </svg>
+            </a>
+            
+            <a href="https://t.me/+996557240808" class="contact-btn telegram" data-tooltip="Telegram" target="_blank">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+              </svg>
+            </a>
+            
+            <a href="tel:+996557240808" class="contact-btn phone" data-tooltip="Позвонить" target="_blank">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+              </svg>
+            </a>
+          </div>
+          <div class="phone-number">+996 (557) 24-08-08</div>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      // Функциональность для открытия/закрытия кнопок
+      document.addEventListener('DOMContentLoaded', function() {
+        const toggleButton = document.getElementById('toggleButton');
+        const contactGroups = document.getElementById('contactGroups');
+        
+        toggleButton.addEventListener('click', function() {
+          const isHidden = contactGroups.classList.contains('hidden');
+          
+          if (isHidden) {
+            // Открываем кнопки
+            contactGroups.classList.remove('hidden');
+            toggleButton.classList.add('active');
+            toggleButton.innerHTML = '✖️';
+          } else {
+            // Закрываем кнопки
+            contactGroups.classList.add('hidden');
+            toggleButton.classList.remove('active');
+            toggleButton.innerHTML = '✉️';
+          }
+        });
+        
+        // Закрытие при клике вне области кнопок
+        document.addEventListener('click', function(event) {
+          const contactButtons = document.querySelector('.contact-buttons');
+          
+          if (!contactButtons.contains(event.target)) {
+            contactGroups.classList.add('hidden');
+            toggleButton.classList.remove('active');
+            toggleButton.innerHTML = '✉️';
+          }
+        });
+        
+        // Предотвращаем закрытие при клике на сами кнопки контактов
+        contactGroups.addEventListener('click', function(event) {
+          event.stopPropagation();
+        });
+      });
+    </script>
+    
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>

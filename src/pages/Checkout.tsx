@@ -1,14 +1,8 @@
+import { useCart } from '@/hooks/use-cart';
 import React, { useState } from 'react';
 
 // Мок-хуки и компонентов для демонстрации
-const useCart = () => ({
-  items: [
-    { id: 1, name: 'Смартфон Samsung Galaxy', price: 25000, quantity: 1 },
-    { id: 2, name: 'Наушники AirPods', price: 8000, quantity: 2 }
-  ],
-  getTotal: () => 41000,
-  clearCart: () => console.log('Корзина очищена')
-});
+
 
 const useNavigate = () => (path) => console.log(`Навигация к: ${path}`);
 
@@ -45,9 +39,14 @@ const banks = [
   { id: 'rsk', name: 'РСК Банк' },
 ];
 
+// Конфигурация Telegram бота
+const TELEGRAM_BOT_TOKEN = '8162969099:AAFP_PlhNzBbb4eZTO6Q1NOt5IQasXanuTo';
+const TELEGRAM_CHAT_ID = '-4840747414'; // Замените на реальный chat_id вашей группы
+
 const Checkout = () => {
   const { items, getTotal, clearCart } = useCart();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -136,39 +135,75 @@ const Checkout = () => {
     return bank ? bank.name : '—';
   };
 
-  const handleSubmit = async () => {
+  const sendToTelegram = async (message: string) => {
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: message,
+          parse_mode: 'HTML'
+        }),
+      });
 
+      if (!response.ok) {
+        throw new Error('Ошибка отправки сообщения в Telegram');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Ошибка:', error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!validate()) return;
 
-    // Формирование сообщения для WhatsApp
-    const message = `🛒 Новый заказ!
-Имя: ${formData.firstName} ${formData.lastName}
-Телефон: ${formData.phone}
-Email: ${formData.email}
-Способ доставки: ${formData.deliveryMethod === DeliveryMethod.DELIVERY ? 'Доставка' : 'Самовывоз'}
+    setIsSubmitting(true);
+
+    try {
+      // Формирование сообщения для Telegram
+      const message = `🛒 <b>НОВЫЙ ЗАКАЗ!</b>
+
+👤 <b>Клиент:</b>
+${formData.firstName} ${formData.lastName}
+📞 ${formData.phone}
+📧 ${formData.email}
+
+🚚 <b>Доставка:</b> ${formData.deliveryMethod === DeliveryMethod.DELIVERY ? 'Доставка' : 'Самовывоз'}
 ${formData.deliveryMethod === DeliveryMethod.PICKUP
-      ? `Самовывоз: ${formData.pickupBranch}`
-      : `Город: ${formData.city}\nАдрес: ${formData.address}`
+        ? `📍 <b>Самовывоз:</b> ${formData.pickupBranch}`
+        : `🏙️ <b>Город:</b> ${formData.city}
+📍 <b>Адрес:</b> ${formData.address}`
+      }
+
+💳 <b>Оплата:</b> ${paymentMethodLabel(formData.paymentMethod)}${formData.paymentMethod === PaymentMethod.INSTALLMENT ? ` (${getBankName(formData.bank)})` : ''}
+
+💬 <b>Комментарий:</b> ${formData.notes || '—'}
+
+📦 <b>ТОВАРЫ:</b>
+${items.map(item => `• ${item.name} — ${item.quantity} шт. × ${item.price.toLocaleString()} с`).join('\n')}
+
+💰 <b>ИТОГО: ${getTotal().toLocaleString()} с</b>`;
+
+      // Отправка в Telegram
+      await sendToTelegram(message);
+
+      // Очистка корзины и редирект
+      clearCart();
+      navigate('/order-confirmation');
+
+      alert('Заказ успешно отправлен!');
+    } catch (error) {
+      alert('Ошибка при отправке заказа. Попробуйте еще раз.');
+      console.error('Ошибка отправки:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-Способ оплаты: ${paymentMethodLabel(formData.paymentMethod)}${formData.paymentMethod === PaymentMethod.INSTALLMENT ? ` (${getBankName(formData.bank)})` : ''}
-Комментарий: ${formData.notes || '—'}
-
-Товары:
-${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.toLocaleString()} с`).join('\n')}
-
-💰 Итого: ${getTotal().toLocaleString()} с`;
-
-    // WhatsApp номер (замените на реальный)
-    const whatsappNumber = '996703763346';
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
-
-    // Открытие WhatsApp
-    window.open(whatsappUrl, '_blank');
-
-    // Очистка корзины и редирект
-    clearCart();
-    navigate('/order-confirmation');
   };
 
   return (
@@ -448,6 +483,8 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
                 ></textarea>
               </div>
             </div>
+
+          
           </div>
 
           {/* Правая колонка - Сводка заказа */}
@@ -487,9 +524,16 @@ ${items.map(item => `• ${item.name} — ${item.quantity} шт. ${item.price.to
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium mt-6"
+                disabled={isSubmitting}
+                style={{background: "#E30613"}}
+                className={`w-full py-3 px-4 rounded-md font-medium mt-6 transition-colors ${
+                  isSubmitting 
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'text-white'
+                }`
+              }
               >
-                Оформить заказ
+                {isSubmitting ? 'Отправка...' : 'Оформить заказ'}
               </button>
 
               <p className="text-xs text-gray-500 text-center mt-4">

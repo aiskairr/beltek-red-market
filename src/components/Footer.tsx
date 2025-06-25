@@ -44,8 +44,8 @@ export const Footer = ({categories}:any) => {
           <div>
             <h3 className="text-xl font-bold mb-4">Контакты</h3>
             <ul className="space-y-2">
-              <li className="flex items-center"><Phone size={16} className="mr-2" />Беш Сары: <a href="tel:+996707030575" className="hover:text-belek-red transition-colors">+996 707 030 575</a></li>
-              <li className="flex items-center"><Phone size={16} className="mr-2" />Аю Гранд: <a href="tel:+996999160976" className="hover:text-belek-red transition-colors">+996 999 160 976</a></li>
+              <li className="flex items-center"><Phone size={16} className="mr-2" />Беш Сары: <a href="tel:+996226240808" className="hover:text-belek-red transition-colors">+996 226 240 808</a></li>
+              <li className="flex items-center"><Phone size={16} className="mr-2" />Аю Гранд: <a href="tel:+996557240808" className="hover:text-belek-red transition-colors">+996 557 240 808</a></li>
               <li className="flex items-center"><Mail size={16} className="mr-2" /> <a href="mailto:belektehnika@gmail.com" className="hover:text-belek-red transition-colors">belektehnika@gmail.com</a></li>
               <li className="flex items-start"><MapPin size={16} className="mr-2 mt-1 flex-shrink-0" /> <span>Ошский рынок — ул. Бейшеналиевой, 42</span></li>
               <li className="flex items-start"><MapPin size={16} className="mr-2 mt-1 flex-shrink-0" /> <span>АЮ GRAND — Валиханова 2 ст8, 1 этаж, 101/1</span></li>

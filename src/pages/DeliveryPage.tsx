@@ -234,11 +234,11 @@ const DeliveryPage = () => {
                     <h2 className="text-3xl font-bold mb-8">ЕСТЬ ВОПРОСЫ?</h2>
                     <p className="text-xl mb-8 text-red-200">Свяжитесь с нами для получения подробной информации</p>
                     <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-8">
-                        <a href="tel:+996707030575" className="flex items-center space-x-2 bg-white/20 px-6 py-3 rounded-lg hover:bg-white/30 transition-colors">
+                        <a href="tel:+996226240808" className="flex items-center space-x-2 bg-white/20 px-6 py-3 rounded-lg hover:bg-white/30 transition-colors">
                             <Phone size={20} />
                             <span>Позвонить в Беш Сары</span>
                         </a>
-                        <a href="tel:+996999160976" className="flex items-center space-x-2 bg-white/20 px-6 py-3 rounded-lg hover:bg-white/30 transition-colors">
+                        <a href="tel:+996557240808" className="flex items-center space-x-2 bg-white/20 px-6 py-3 rounded-lg hover:bg-white/30 transition-colors">
                             <Phone size={20} />
                             <span>Позвонить в Аю Гранд</span>
                         </a>
