@@ -7,7 +7,7 @@ interface ProductCardProps {
   product: Product;
 }
 
-export const ProductCard = ({ product }: ProductCardProps) => {
+export const ProductCard = ({ product }: any) => {
   const { addItem } = useCart();
 
   const handleAddToCart = (e: React.MouseEvent) => {

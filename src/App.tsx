@@ -22,7 +22,16 @@ import DeliveryPage from "./pages/DeliveryPage";
 import ContactsPage from "./pages/ContactsPage";
 import SearchResults from "./pages/SearchResult";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 минут
+      gcTime: 10 * 60 * 1000, // 10 минут
+      retry: 3,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

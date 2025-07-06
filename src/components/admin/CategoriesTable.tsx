@@ -19,7 +19,7 @@ import { Category } from '../../hooks/useCategories';
 interface CategoriesTableProps {
   categories: Category[];
   onDelete: (id: number) => void;
-  onEdit?: (id: number, formData: Category) => void;
+  onEdit?: any;
   loading?: boolean;
 }
 

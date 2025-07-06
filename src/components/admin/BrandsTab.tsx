@@ -1,10 +1,9 @@
-// components/admin/CategoriesTab.tsx (обновленная версия)
 import { BrandForm } from './BrandsForm';
 import { BrandsTable } from './BrandsTable';
-import { useBrands } from '@/hooks/useBrands';
+import { useBrandsWithMutations } from '@/hooks/useBrands';
 
 export const BrandsTab = () => {
-  const { brands, loading, addBrand, deleteBrand } = useBrands();
+  const { brands, loading, addBrand, deleteBrand } = useBrandsWithMutations();
 
   return (
     <div className="space-y-6">

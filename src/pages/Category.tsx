@@ -1,28 +1,17 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { ProductCard } from '@/components/ProductCard';
-import { Product } from '@/hooks/use-cart';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { X, Filter } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
-const PRODUCTS_PER_PAGE = 9;
-
-// Типы для категорий и брендов
-interface Category {
-  id?: string;
-  name: string;
-  slug: string;
-}
-
-interface Brand {
-  id: string;
-  name: string;
-}
+// Импортируем наши хуки
+import { useCategories, useCategoriesWithMutations } from '@/hooks/useCategories';
+import { useBrands, useBrandsWithMutations } from '@/hooks/useBrands';
+import { useInfiniteProducts } from '@/hooks/useProduct';
+import { ProductFilters } from '@/hooks/useProduct';
 
 interface SubCategory {
   name: string;
@@ -34,39 +23,115 @@ interface SubCategory {
 const FILTERS_STORAGE_KEY = 'category_filters';
 
 const Category = () => {
-  const { categorySlug = 'all', subCategorySlug } = useParams<{ categorySlug: string, subCategorySlug: string }>();
+  const { categorySlug = 'all', subCategorySlug } = useParams<{
+    categorySlug: string;
+    subCategorySlug: string;
+  }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  // Добавляем недостающие состояния
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
-  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
+
+  // Загружаем данные через хуки
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const { data: brands = [], isLoading: brandsLoading } = useBrands();
+
+  // Локальные состояния для фильтров
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  
-  // Состояние для доступных брендов в категории
-  const [availableBrandsInCategory, setAvailableBrandsInCategory] = useState<string[]>([]);
-  
-  // Разделяем состояния для цены
-  const [tempPriceRange, setTempPriceRange] = useState<[number, number]>([0, 200000]); // Временное значение для слайдера
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 200000]); // Применяемое значение для фильтрации
-  const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(200000);
-  
+  const [tempPriceRange, setTempPriceRange] = useState<[number, number]>([0, 200000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 200000]);
   const [sortBy, setSortBy] = useState<string>('featured');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Пагинация
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
 
-  // Функция для сохранения фильтров в localStorage
+  // Определяем текущую категорию
+  const currentCategory = useMemo(() => {
+    if (categorySlug === 'all') {
+      return { id: 0, category: 'Все товары', mini_categories: [] };
+    }
+
+    const decodedSlug = decodeURIComponent(categorySlug);
+    return categories.find(cat =>
+      cat.category === decodedSlug ||
+      cat.id.toString() === categorySlug
+    ) || { id: 0, category: decodedSlug, mini_categories: [] };
+  }, [categories, categorySlug]);
+
+  // Создаем фильтры для продуктов
+  const productFilters: ProductFilters = useMemo(() => {
+    const filters: ProductFilters = {};
+
+    if (categorySlug !== 'all' && currentCategory?.category) {
+      filters.category = currentCategory.category;
+    }
+
+    if (subCategorySlug) {
+      filters.mini_category = subCategorySlug;
+    }
+
+    if (selectedBrands.length > 0) {
+      filters.brand = selectedBrands[0]; // API поддерживает только один бренд, можно расширить
+    }
+
+    if (priceRange[0] > 0 || priceRange[1] < 200000) {
+      filters.minPrice = priceRange[0];
+      filters.maxPrice = priceRange[1];
+    }
+
+    return filters;
+  }, [categorySlug, currentCategory, subCategorySlug, selectedBrands, priceRange]);
+
+  // Используем infinite scroll для продуктов
+  const {
+    data: productsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: productsLoading,
+    error: productsError
+  } = useInfiniteProducts(productFilters, 9); // 9 товаров на страницу как в оригинале
+
+  // Получаем все продукты из всех страниц
+  const products = useMemo(() => {
+    return productsData?.pages.flatMap(page => page.products) || [];
+  }, [productsData]);
+
+  const totalCount = productsData?.pages[0]?.totalCount || 0;
+
+  // Подкатегории из текущей категории
+  const subCategories: SubCategory[] = useMemo(() => {
+    if (!currentCategory?.mini_categories) return [];
+
+    return currentCategory.mini_categories.map(name => ({
+      name,
+      slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+      count: 0 // Можно добавить подсчет, если нужно
+    }));
+  }, [currentCategory]);
+
+  // Доступные бренды в категории (фильтруем по продуктам)
+  const availableBrandsInCategory = useMemo(() => {
+    const brandNames = new Set<string>();
+    products.forEach(product => {
+      if (product.brand && product.brand.trim()) {
+        brandNames.add(product.brand);
+      }
+    });
+    return Array.from(brandNames);
+  }, [products]);
+
+  const availableBrands = useMemo(() => {
+    return brands.filter(brand => availableBrandsInCategory.includes(brand.name));
+  }, [brands, availableBrandsInCategory]);
+
+  // Вычисляем диапазон цен из текущих продуктов
+  const { minPrice, maxPrice } = useMemo(() => {
+    if (products.length === 0) return { minPrice: 0, maxPrice: 200000 };
+
+    const prices = products.map(p => p.price);
+    return {
+      minPrice: Math.min(...prices),
+      maxPrice: Math.max(...prices)
+    };
+  }, [products]);
+
+  // Функции для localStorage
   const saveFiltersToStorage = (filters: {
     selectedBrands: string[];
     priceRange: [number, number];
@@ -80,13 +145,11 @@ const Category = () => {
     }
   };
 
-  // Функция для загрузки фильтров из localStorage
   const loadFiltersFromStorage = (currentCategorySlug: string) => {
     try {
       const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
       if (saved) {
         const filters = JSON.parse(saved);
-        // Применяем фильтры только для той же категории
         if (filters.categorySlug === currentCategorySlug) {
           return filters;
         }
@@ -97,7 +160,6 @@ const Category = () => {
     return null;
   };
 
-  // Функция для очистки фильтров из localStorage
   const clearFiltersFromStorage = () => {
     try {
       localStorage.removeItem(FILTERS_STORAGE_KEY);
@@ -105,397 +167,6 @@ const Category = () => {
       console.warn('Не удалось очистить фильтры:', error);
     }
   };
-
-  // Debounced функция для применения фильтра по цене
-  const applyPriceFilter = useCallback(() => {
-    const timeoutId = setTimeout(() => {
-      setPriceRange(tempPriceRange);
-      // Сохраняем фильтры при изменении цены
-      saveFiltersToStorage({
-        selectedBrands,
-        priceRange: tempPriceRange,
-        sortBy,
-        categorySlug
-      });
-    }, 800); // Задержка 800мс после последнего изменения
-
-    return () => clearTimeout(timeoutId);
-  }, [tempPriceRange, selectedBrands, sortBy, categorySlug]);
-
-  // Применяем фильтр по цене с задержкой
-  useEffect(() => {
-    const cleanup = applyPriceFilter();
-    return cleanup;
-  }, [applyPriceFilter]);
-
-  // Загрузка динамических категорий
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      
-      setCategories(data || []);
-      
-      // Найти текущую категорию
-      if (categorySlug !== 'all') {
-        const decodedSlug = decodeURIComponent(categorySlug);
-        const category = data?.find(cat => 
-          cat.slug === categorySlug || 
-          cat.slug === decodedSlug || 
-          cat.name === decodedSlug ||
-          cat.id === categorySlug
-        );
-        setCurrentCategory(category || null);
-        console.log('Найдена категория:', category);
-      } else {
-        setCurrentCategory({ name: 'Все товары', slug: 'all' });
-      }
-      
-    } catch (err) {
-      console.error('Ошибка загрузки категорий:', err);
-      if (categorySlug !== 'all') {
-        setCurrentCategory({ 
-          name: decodeURIComponent(categorySlug), 
-          slug: categorySlug 
-        });
-      } else {
-        setCurrentCategory({ name: 'Все товары', slug: 'all' });
-      }
-    }
-  };
-
-  // Загрузка подкатегорий для текущей категории
-  const fetchSubCategories = async () => {
-    if (categorySlug === 'all') {
-      setSubCategories([]);
-      return;
-    }
-
-    try {
-      // Сначала пытаемся загрузить подкатегории из таблицы subcategories (если есть)
-      let subcategoriesFromTable = [];
-      
-      try {
-        const { data: subcatData, error: subcatError } = await supabase
-          .from('subcategories')
-          .select('*')
-          .eq('category_slug', categorySlug)
-          .order('name');
-        
-        if (!subcatError && subcatData) {
-          subcategoriesFromTable = subcatData.map(subcat => ({
-            name: subcat.name,
-            slug: subcat.slug,
-            count: 0 // Инициализируем с 0, посчитаем позже
-          }));
-        }
-      } catch (err) {
-        console.log('Таблица subcategories не найдена или недоступна, используем товары');
-      }
-
-      // Теперь загружаем товары для подсчета количества в каждой подкатегории
-      let productQuery = supabase
-        .from('products')
-        .select('mini_category');
-
-      // Фильтрация по категории
-      const decodedSlug = decodeURIComponent(categorySlug);
-      if (currentCategory && currentCategory.name) {
-        productQuery = productQuery.eq('category', currentCategory.name);
-      } else {
-        productQuery = productQuery.eq('category', decodedSlug);
-      }
-
-      const { data: productData, error: productError } = await productQuery;
-      
-      if (productError) throw productError;
-
-      // Считаем количество товаров в каждой подкатегории
-      const productCounts = {};
-      if (productData && productData.length > 0) {
-        productData.forEach(product => {
-          if (product.mini_category) {
-            productCounts[product.mini_category] = (productCounts[product.mini_category] || 0) + 1;
-          }
-        });
-      }
-
-      let finalSubCategories = [];
-
-      if (subcategoriesFromTable.length > 0) {
-        // Если есть подкатегории из таблицы, используем их и добавляем количество
-        finalSubCategories = subcategoriesFromTable.map(subcat => ({
-          ...subcat,
-          count: productCounts[subcat.name] || 0
-        }));
-
-        // Добавляем подкатегории из товаров, которых нет в таблице subcategories
-        Object.keys(productCounts).forEach(miniCategoryName => {
-          const exists = subcategoriesFromTable.some(subcat => subcat.name === miniCategoryName);
-          if (!exists) {
-            finalSubCategories.push({
-              name: miniCategoryName,
-              slug: miniCategoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-              count: productCounts[miniCategoryName]
-            });
-          }
-        });
-      } else {
-        // Если нет таблицы subcategories, создаем подкатегории только из товаров
-        finalSubCategories = Object.entries(productCounts).map(([name, count]) => ({
-          name,
-          slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-          count: count as number
-        }));
-      }
-
-      // Сортируем по названию
-      finalSubCategories.sort((a, b) => a.name.localeCompare(b.name));
-
-      setSubCategories(finalSubCategories);
-
-    } catch (err) {
-      console.error('Ошибка загрузки подкатегорий:', err);
-      setSubCategories([]);
-    }
-  };
-
-  // Получение доступных брендов для категории
-  const fetchAvailableBrands = async () => {
-    try {
-      let brandQuery = supabase
-        .from("products")
-        .select("brand");
-
-      // Фильтрация по категории
-      if (categorySlug && categorySlug !== "all") {
-        const decodedSlug = decodeURIComponent(categorySlug);
-        
-        if (currentCategory && currentCategory.name) {
-          brandQuery = brandQuery.eq("category", currentCategory.name);
-        } else {
-          brandQuery = brandQuery.eq("category", decodedSlug);
-        }
-      }
-
-      if (subCategorySlug) {
-        brandQuery = brandQuery.eq("mini_category", subCategorySlug);
-      }
-
-      const { data: brandData, error: brandError } = await brandQuery;
-      
-      if (brandError) throw brandError;
-
-      // Получаем уникальные бренды
-      if (brandData && brandData.length > 0) {
-        const uniqueBrands = Array.from(new Set(brandData.map(product => product.brand))).filter(Boolean);
-        setAvailableBrandsInCategory(uniqueBrands);
-      } else {
-        setAvailableBrandsInCategory([]);
-      }
-
-    } catch (err: any) {
-      console.error("Ошибка получения брендов для категории:", err.message);
-      setAvailableBrandsInCategory([]);
-    }
-  };
-
-  const fetchProductsInfo = async () => {
-    try {
-      // Сначала получаем все товары без фильтра по цене для определения диапазона
-      let priceQuery = supabase
-        .from("products")
-        .select("price");
-
-      // Фильтрация по категории для диапазона цен
-      if (categorySlug && categorySlug !== "all") {
-        const decodedSlug = decodeURIComponent(categorySlug);
-        
-        if (currentCategory && currentCategory.name) {
-          priceQuery = priceQuery.eq("category", currentCategory.name);
-        } else {
-          priceQuery = priceQuery.eq("category", decodedSlug);
-        }
-      }
-
-      if (subCategorySlug) {
-        priceQuery = priceQuery.eq("mini_category", subCategorySlug);
-      }
-
-      // Применяем только фильтр по бренду для диапазона цен
-      if (selectedBrands.length > 0) {
-        priceQuery = priceQuery.in("brand", selectedBrands);
-      }
-
-      const { data: priceData, error: priceError } = await priceQuery;
-      
-      if (priceError) throw priceError;
-
-      // Устанавливаем диапазон цен
-      if (priceData && priceData.length > 0) {
-        const prices = priceData.map(product => product.price);
-        const minPriceValue = Math.min(...prices);
-        const maxPriceValue = Math.max(...prices);
-        setMinPrice(minPriceValue);
-        setMaxPrice(maxPriceValue);
-        
-        // Устанавливаем начальные значения только при первой загрузке категории
-        // или если фильтры не были загружены из localStorage
-        if (priceRange[0] === 0 && priceRange[1] === 200000) {
-          setPriceRange([minPriceValue, maxPriceValue]);
-          setTempPriceRange([minPriceValue, maxPriceValue]);
-        }
-      }
-
-      // Теперь получаем количество с учетом всех фильтров включая цену
-      let countQuery = supabase
-        .from("products")
-        .select("*", { count: 'exact', head: true });
-
-      // Фильтрация по категории
-      if (categorySlug && categorySlug !== "all") {
-        const decodedSlug = decodeURIComponent(categorySlug);
-        
-        if (currentCategory && currentCategory.name) {
-          countQuery = countQuery.eq("category", currentCategory.name);
-        } else {
-          countQuery = countQuery.eq("category", decodedSlug);
-        }
-      }
-
-      if (subCategorySlug) {
-        countQuery = countQuery.eq("mini_category", subCategorySlug);
-      }
-
-      // Применяем все фильтры для подсчета
-      if (selectedBrands.length > 0) {
-        countQuery = countQuery.in("brand", selectedBrands);
-      }
-
-      countQuery = countQuery
-        .gte("price", priceRange[0])
-        .lte("price", priceRange[1]);
-
-      const { count, error: countError } = await countQuery;
-      
-      if (countError) throw countError;
-
-      setTotalCount(count || 0);
-
-    } catch (err: any) {
-      console.error("Ошибка получения информации о товарах:", err.message);
-    }
-  };
-
-  // Загрузка товаров с пагинацией
-  const fetchProducts = async (page: number = 0, reset: boolean = false) => {
-    try {
-      if (page === 0) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      setError(null);
-
-      let query = supabase
-        .from("products")
-        .select("*")
-        .range(page * PRODUCTS_PER_PAGE, (page + 1) * PRODUCTS_PER_PAGE - 1);
-
-      // Фильтрация по категории
-      if (categorySlug && categorySlug !== "all") {
-        const decodedSlug = decodeURIComponent(categorySlug);
-        
-        if (currentCategory && currentCategory.name) {
-          query = query.eq("category", currentCategory.name);
-        } else {
-          query = query.eq("category", decodedSlug);
-        }
-      }
-
-      if (subCategorySlug) {
-        query = query.eq("mini_category", subCategorySlug);
-      }
-
-      // Применяем фильтры
-      if (selectedBrands.length > 0) {
-        query = query.in("brand", selectedBrands);
-      }
-
-      query = query
-        .gte("price", priceRange[0])
-        .lte("price", priceRange[1]);
-
-      // Сортировка
-      switch (sortBy) {
-        case 'price-asc':
-          query = query.order("price", { ascending: true });
-          break;
-        case 'price-desc':
-          query = query.order("price", { ascending: false });
-          break;
-        case 'name-asc':
-          query = query.order("name", { ascending: true });
-          break;
-        case 'featured':
-        default:
-          query = query.order("created_at", { ascending: false });
-          break;
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const newProducts = data || [];
-      
-      if (reset || page === 0) {
-        setProducts(newProducts);
-      } else {
-        setProducts(prev => [...prev, ...newProducts]);
-      }
-
-      setHasMore(newProducts.length === PRODUCTS_PER_PAGE);
-      setCurrentPage(page);
-      
-      console.log(`Загружено товаров на странице ${page}:`, newProducts.length);
-
-    } catch (err: any) {
-      console.error("Ошибка загрузки товаров:", err.message);
-      setError(`Ошибка загрузки товаров: ${err.message}`);
-      if (reset || page === 0) {
-        setProducts([]);
-      }
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  // Загрузка брендов
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('brands')
-          .select('*')
-          .order('name');
-        if (error) throw error;
-        setBrands(data || []);
-      } catch (err) {
-        console.error('Ошибка загрузки брендов:', err);
-      }
-    };
-    fetchBrands();
-  }, []);
-
-  // Загрузка категорий при монтировании
-  useEffect(() => {
-    fetchCategories();
-  }, [categorySlug]);
 
   // Загрузка сохраненных фильтров при изменении категории
   useEffect(() => {
@@ -507,67 +178,32 @@ const Category = () => {
         setTempPriceRange(savedFilters.priceRange || [0, 200000]);
         setSortBy(savedFilters.sortBy || 'featured');
       } else {
-        // Сбрасываем фильтры только если переходим на новую категорию
+        // Сбрасываем фильтры для новой категории
         setSelectedBrands([]);
         setSortBy('featured');
-        // Цены будут установлены в fetchProductsInfo
+        setPriceRange([0, 200000]);
+        setTempPriceRange([0, 200000]);
       }
     }
   }, [categorySlug]);
 
-  // Загрузка подкатегорий после загрузки категории
+  // Обновляем диапазон цен при загрузке данных
   useEffect(() => {
-    if (currentCategory !== null) {
-      fetchSubCategories();
+    if (products.length > 0 && priceRange[0] === 0 && priceRange[1] === 200000) {
+      const newRange: [number, number] = [minPrice, maxPrice];
+      setPriceRange(newRange);
+      setTempPriceRange(newRange);
     }
-  }, [currentCategory, categorySlug]);
+  }, [products, minPrice, maxPrice, priceRange]);
 
-  // Загрузка товаров после загрузки категории
-  useEffect(() => {
-    if (currentCategory !== null || categorySlug === 'all') {
-      // Сбрасываем пагинацию при смене категории/подкатегории
-      setProducts([]);
-      setCurrentPage(0);
-      setHasMore(true);
-      
-      // Загружаем доступные бренды для категории
-      fetchAvailableBrands();
-      
-      // Сначала получаем информацию о товарах и диапазоне цен
-      fetchProductsInfo().then(() => {
-        // Затем загружаем товары
-        fetchProducts(0, true);
-      });
-    }
-  }, [currentCategory, subCategorySlug]);
-
-  // Перезагрузка при изменении фильтров или сортировки
-  useEffect(() => {
-    if (currentCategory !== null || categorySlug === 'all') {
-      setProducts([]);
-      setCurrentPage(0);
-      setHasMore(true);
-      fetchProducts(0, true);
-      // Обновляем информацию о товарах при изменении фильтров
-      fetchProductsInfo();
-    }
-  }, [selectedBrands, priceRange, sortBy]);
-
-  // Обновляем диапазон цен при изменении бренда
-  useEffect(() => {
-    if (currentCategory !== null || categorySlug === 'all') {
-      fetchProductsInfo();
-    }
-  }, [selectedBrands]);
-
+  // Обработчики
   const handleBrandToggle = (brand: string) => {
     const newSelectedBrands = selectedBrands.includes(brand)
       ? selectedBrands.filter(b => b !== brand)
       : [...selectedBrands, brand];
-    
+
     setSelectedBrands(newSelectedBrands);
-    
-    // Сохраняем фильтры
+
     saveFiltersToStorage({
       selectedBrands: newSelectedBrands,
       priceRange,
@@ -576,21 +212,12 @@ const Category = () => {
     });
   };
 
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
-      fetchProducts(currentPage + 1);
-    }
-  };
-
-  // Обработчик изменения слайдера - теперь изменяет только временное значение
   const handlePriceChange = (value: [number, number]) => {
     setTempPriceRange(value);
   };
 
-  // Кнопка для мгновенного применения фильтра по цене
   const applyPriceFilterNow = () => {
     setPriceRange(tempPriceRange);
-    // Сохраняем фильтры
     saveFiltersToStorage({
       selectedBrands,
       priceRange: tempPriceRange,
@@ -599,24 +226,8 @@ const Category = () => {
     });
   };
 
-  // Фильтруем бренды по тем, что доступны в текущей категории
-  const availableBrands = brands.filter(brand => availableBrandsInCategory.includes(brand.name));
-
-  const resetFilters = () => {
-    setSelectedBrands([]);
-    const resetRange: [number, number] = [minPrice, maxPrice];
-    setPriceRange(resetRange);
-    setTempPriceRange(resetRange);
-    setSortBy('featured');
-    
-    // Очищаем сохраненные фильтры
-    clearFiltersFromStorage();
-  };
-
-  // Обработчик изменения сортировки
   const handleSortChange = (newSortBy: string) => {
     setSortBy(newSortBy);
-    // Сохраняем фильтры
     saveFiltersToStorage({
       selectedBrands,
       priceRange,
@@ -625,75 +236,33 @@ const Category = () => {
     });
   };
 
-  // Функция для перехода к подкатегории
+  const resetFilters = () => {
+    setSelectedBrands([]);
+    const resetRange: [number, number] = [minPrice, maxPrice];
+    setPriceRange(resetRange);
+    setTempPriceRange(resetRange);
+    setSortBy('featured');
+    clearFiltersFromStorage();
+  };
+
   const handleSubCategoryClick = (subCatSlug: string) => {
     navigate(`/category/${categorySlug}/${subCatSlug}`);
   };
 
-  // Функция для возврата к категории (убрать подкатегорию)
   const handleBackToCategory = () => {
     navigate(`/category/${categorySlug}`);
   };
 
-  // Компонент фильтров
-  const FiltersContent = () => (
-    <div className="bg-white rounded-lg shadow divide-y">
-      <div className="p-4">
-        <h3 className="font-medium mb-4">Цена</h3>
-        <div className="px-2">
-          <Slider
-            defaultValue={[minPrice, maxPrice]}
-            value={tempPriceRange}
-            onValueChange={handlePriceChange}
-            min={minPrice}
-            max={maxPrice}
-            step={1000}
-            className="mb-4"
-          />
-          <div className="flex justify-between text-sm mb-3">
-            <span>{tempPriceRange[0].toLocaleString()} с</span>
-            <span>{tempPriceRange[1].toLocaleString()} с</span>
-          </div>
-          
-          {/* Показываем диапазон доступных цен */}
-          <div className="flex justify-between text-xs text-gray-500 mb-3">
-            <span>Мин: {minPrice.toLocaleString()} с</span>
-            <span>Макс: {maxPrice.toLocaleString()} с</span>
-          </div>
-          
-          {/* Показываем кнопку применения только если есть изменения */}
-          {(tempPriceRange[0] !== priceRange[0] || tempPriceRange[1] !== priceRange[1]) && (
-            <button
-              onClick={applyPriceFilterNow}
-              className="w-full bg-blue-600 text-white text-sm py-2 px-3 rounded hover:bg-blue-700 transition-colors"
-            >
-              Применить
-            </button>
-          )}
-        </div>
-      </div>
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
 
-      <div className="p-4">
-        <h3 className="font-medium mb-4">Бренд</h3>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {availableBrands.map(brand => (
-            <div key={brand.id} className="flex items-center">
-              <Checkbox
-                id={`brand-${brand.id}`}
-                checked={selectedBrands.includes(brand.name)}
-                onCheckedChange={() => handleBrandToggle(brand.name)}
-              />
-              <Label htmlFor={`brand-${brand.id}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                {brand.name}
-              </Label>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  // Состояние загрузки
+  const isLoading = categoriesLoading || brandsLoading || productsLoading;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <main className="flex-1 container mx-auto px-4 py-8">
@@ -708,18 +277,15 @@ const Category = () => {
     );
   }
 
-  if (error) {
+  if (productsError) {
     return (
       <div className="min-h-screen flex flex-col">
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <div className="text-red-600 mb-2">⚠️ Произошла ошибка</div>
-            <div className="text-gray-700">{error}</div>
+            <div className="text-gray-700">{(productsError as Error).message}</div>
             <button
-              onClick={() => {
-                setError(null);
-                fetchProducts(0, true);
-              }}
+              onClick={() => window.location.reload()}
               className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
             >
               Попробовать снова
@@ -739,7 +305,7 @@ const Category = () => {
             <Link to="/" className="hover:text-blue-600">Главная</Link>
             <span>/</span>
             <Link to={`/category/${categorySlug}`} className="hover:text-blue-600">
-              {currentCategory?.name || decodeURIComponent(categorySlug)}
+              {currentCategory?.category || decodeURIComponent(categorySlug)}
             </Link>
             {subCategorySlug && (
               <>
@@ -754,11 +320,11 @@ const Category = () => {
           <div className="relative mb-4 h-40 overflow-hidden rounded-lg">
             <div className="absolute inset-0 bg-opacity-90 flex items-center justify-center" style={{ background: "rgb(227 6 19 / var(--tw-bg-opacity, 1))" }}>
               <h1 className="text-3xl font-bold text-white text-center px-4">
-                {subCategorySlug ? subCategorySlug : (currentCategory?.name || decodeURIComponent(categorySlug))}
+                {subCategorySlug ? subCategorySlug : (currentCategory?.category || decodeURIComponent(categorySlug))}
               </h1>
             </div>
           </div>
-          
+
           {/* Подкатегории */}
           {!subCategorySlug && subCategories.length > 0 && (
             <div className="mb-6">
@@ -788,11 +354,11 @@ const Category = () => {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
-                Назад к {currentCategory?.name}
+                Назад к {currentCategory?.category}
               </button>
             </div>
           )}
-          
+
           <p className="text-gray-600">
             Показано товаров: {products.length} из {totalCount}
           </p>
@@ -802,40 +368,38 @@ const Category = () => {
           {/* Фильтры */}
           <div className={`lg:w-1/4 ${mobileFiltersOpen ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-lg shadow divide-y">
-            <div className="p-4">
-  <h3 className="font-medium mb-4">Цена</h3>
-  <div className="px-2">
-    <Slider
-  defaultValue={[minPrice, maxPrice]}
-  value={tempPriceRange}
-  onValueChange={handlePriceChange}
-  min={minPrice}
-  max={maxPrice}
-  step={1000}
-  className="mb-4"
-/>
-    <div className="flex justify-between text-sm mb-3">
-      <span>{tempPriceRange[0].toLocaleString()} с</span>
-      <span>{tempPriceRange[1].toLocaleString()} с</span>
-    </div>
-    
-    {/* Показываем диапазон доступных цен */}
-    <div className="flex justify-between text-xs text-gray-500 mb-3">
-      <span>Мин: {minPrice.toLocaleString()} с</span>
-      <span>Макс: {maxPrice.toLocaleString()} с</span>
-    </div>
-    
-    {/* Показываем кнопку применения только если есть изменения */}
-    {(tempPriceRange[0] !== priceRange[0] || tempPriceRange[1] !== priceRange[1]) && (
-      <button
-        onClick={applyPriceFilterNow}
-        className="w-full bg-blue-600 text-white text-sm py-2 px-3 rounded hover:bg-blue-700 transition-colors"
-      >
-        Применить
-      </button>
-    )}
-  </div>
-</div>
+              <div className="p-4">
+                <h3 className="font-medium mb-4">Цена</h3>
+                <div className="px-2">
+                  <Slider
+                    defaultValue={[minPrice, maxPrice]}
+                    value={tempPriceRange}
+                    onValueChange={handlePriceChange}
+                    min={minPrice}
+                    max={maxPrice}
+                    step={1000}
+                    className="mb-4"
+                  />
+                  <div className="flex justify-between text-sm mb-3">
+                    <span>{tempPriceRange[0].toLocaleString()} с</span>
+                    <span>{tempPriceRange[1].toLocaleString()} с</span>
+                  </div>
+
+                  <div className="flex justify-between text-xs text-gray-500 mb-3">
+                    <span>Мин: {minPrice.toLocaleString()} с</span>
+                    <span>Макс: {maxPrice.toLocaleString()} с</span>
+                  </div>
+
+                  {(tempPriceRange[0] !== priceRange[0] || tempPriceRange[1] !== priceRange[1]) && (
+                    <button
+                      onClick={applyPriceFilterNow}
+                      className="w-full bg-blue-600 text-white text-sm py-2 px-3 rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Применить
+                    </button>
+                  )}
+                </div>
+              </div>
 
               <div className="p-4">
                 <h3 className="font-medium mb-4">Бренд</h3>
@@ -871,7 +435,7 @@ const Category = () => {
                 <select
                   id="sort"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => handleSortChange(e.target.value)}
                   className="input-field text-sm py-2"
                 >
                   <option value="featured">По умолчанию</option>
@@ -889,16 +453,16 @@ const Category = () => {
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
-                
+
                 {/* Кнопка "Загрузить еще" */}
-                {hasMore && (
+                {hasNextPage && (
                   <div className="mt-8 text-center">
                     <button
                       onClick={handleLoadMore}
-                      disabled={loadingMore}
+                      disabled={isFetchingNextPage}
                       className="primary-button inline-flex items-center gap-2 min-w-[200px] justify-center"
                     >
-                      {loadingMore ? (
+                      {isFetchingNextPage ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                           Загрузка...
@@ -909,8 +473,8 @@ const Category = () => {
                     </button>
                   </div>
                 )}
-                
-                {!hasMore && products.length > 0 && (
+
+                {!hasNextPage && products.length > 0 && (
                   <div className="mt-8 text-center text-gray-500">
                     Больше товаров нет
                   </div>
@@ -936,7 +500,6 @@ const Category = () => {
           </div>
         </div>
       </main>
-      
     </div>
   );
 };

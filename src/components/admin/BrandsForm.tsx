@@ -8,7 +8,7 @@ import { Plus, Upload, X } from "lucide-react";
 import { BrandFormData } from '@/hooks/useBrands';
 
 interface BrandFormProps {
-  onSubmit: (formData: BrandFormData) => Promise<void>;
+  onSubmit: any;
   loading?: boolean;
 }
 

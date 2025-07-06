@@ -49,11 +49,13 @@ interface Product {
 interface ProductsTableProps {
   categories: Category[];
   brands: Brand[];
-  products: Product[];
+  products: any[];
   onDelete: (id: number) => void;
   onEdit?: (id: number, formData: Product) => void;
   loading?: boolean;
   availableTemplates?: string[]; // Изменено: массив строк для названий шаблонов
+  updateLoading: any;
+  deleteLoading: any;
 }
 
 export const ProductsTable = ({

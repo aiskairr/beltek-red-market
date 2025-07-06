@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import mainpage from "../../public/mainpage2.png"
 import { useBrands } from '@/hooks/useBrands';
 import saleimage from "../../public/saleimage.png"
-import { useCategories } from '@/hooks/useCategories';
+import { useCategories, useCategoriesWithMutations } from '@/hooks/useCategories';
 import {FullPageLoader} from "../components/Preloader"
 import main1 from "../../public/main1.png"
 import main2 from "../../public/2main.png"
@@ -19,7 +19,7 @@ const Index = () => {
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   // const { brands } = useBrands()
-  const { categories: categoriesData, loading: CategoriesLoading } = useCategories();
+  const { categories: categoriesData, loading: CategoriesLoading } = useCategoriesWithMutations();
 
   useEffect(() => {
     const fetchFeaturedProducts = async () => {

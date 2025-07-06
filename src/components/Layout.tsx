@@ -2,11 +2,11 @@
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { Outlet } from 'react-router-dom';
-import { useCategories } from '@/hooks/useCategories';
+import { useCategoriesWithMutations } from '@/hooks/useCategories';
 import { FullPageLoader } from './Preloader';
 
 export const Layout: React.FC = () => {
-    const { categories: categoriesData, loading: CategoriesLoading } = useCategories();
+    const { categories: categoriesData, loading: CategoriesLoading } = useCategoriesWithMutations();
     // if (CategoriesLoading) {
     //     return (
     //       <FullPageLoader />

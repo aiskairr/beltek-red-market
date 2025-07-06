@@ -15,6 +15,7 @@ interface ProductFormProps {
     brands: Brand[]
     onSubmit: (data: any) => Promise<void>;
     onCancel: () => void;
+    loading: any;
 }
 
 interface Characteristic {
@@ -43,7 +44,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
     const { toast } = useToast();
     const [images, setImages] = useState<ProductImage[]>([]);
     const [uploading, setUploading] = useState(false);
-    
+
     const form = useForm<ProductFormData>({
         defaultValues: {
             name: "",
@@ -70,11 +71,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
 
     // Получаем выбранную категорию для фильтрации подкатегорий
     const selectedCategory = form.watch("category");
-    
+
     // Получаем подкатегории для выбранной категории
     const availableSubcategories = useMemo(() => {
         if (!selectedCategory) return [];
-        
+
         const category = categories.find(cat => cat.category === selectedCategory);
         return category?.mini_categories || [];
     }, [selectedCategory, categories]);
@@ -82,7 +83,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
     // Получаем шаблоны для выбранной категории
     const availableTemplates = useMemo(() => {
         if (!selectedCategory) return [];
-        
+
         const category = categories.find(cat => cat.category === selectedCategory);
         return category?.templates || [];
     }, [selectedCategory, categories]);
@@ -93,7 +94,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
         if (!files) return;
 
         const newImages: ProductImage[] = [];
-        
+
         Array.from(files).forEach(file => {
             if (file.type.startsWith('image/')) {
                 const preview = URL.createObjectURL(file);
@@ -120,7 +121,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
     const uploadImages = async (imageFiles: ProductImage[]): Promise<string[]> => {
         const uploadPromises = imageFiles.map(async ({ file }) => {
             const filePath = `products/${Date.now()}_${Math.random().toString(36).substring(2)}_${file.name}`;
-            
+
             const { data: uploadData, error: uploadError } = await supabase
                 .storage
                 .from("products")
@@ -315,11 +316,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                                 className="w-full border px-3 py-2 rounded-md text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                                             >
                                                 <option value="">
-                                                    {!selectedCategory 
-                                                        ? "Сначала выберите категорию" 
-                                                        : availableSubcategories.length === 0 
-                                                        ? "Нет доступных подкатегорий"
-                                                        : "Выберите подкатегорию (опционально)"
+                                                    {!selectedCategory
+                                                        ? "Сначала выберите категорию"
+                                                        : availableSubcategories.length === 0
+                                                            ? "Нет доступных подкатегорий"
+                                                            : "Выберите подкатегорию (опционально)"
                                                     }
                                                 </option>
                                                 {availableSubcategories.map((subcategory, index) => (
@@ -450,9 +451,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                                             <FormItem>
                                                                 <FormLabel className="text-sm">Значение</FormLabel>
                                                                 <FormControl>
-                                                                    <Input 
-                                                                        placeholder="Введите значение..." 
-                                                                        {...field} 
+                                                                    <Input
+                                                                        placeholder="Введите значение..."
+                                                                        {...field}
                                                                     />
                                                                 </FormControl>
                                                             </FormItem>
@@ -479,11 +480,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                                     <div className="text-center p-8 border rounded-lg bg-gray-50 text-gray-500">
                                         <p>Шаблоны не добавлены</p>
                                         <p className="text-sm">
-                                            {!selectedCategory 
+                                            {!selectedCategory
                                                 ? "Выберите категорию чтобы добавить шаблоны"
-                                                : availableTemplates.length === 0 
-                                                ? "Для этой категории нет доступных шаблонов"
-                                                : "Нажмите \"Добавить шаблон\" чтобы добавить"
+                                                : availableTemplates.length === 0
+                                                    ? "Для этой категории нет доступных шаблонов"
+                                                    : "Нажмите \"Добавить шаблон\" чтобы добавить"
                                             }
                                         </p>
                                     </div>
@@ -557,8 +558,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                             <Button type="button" onClick={onCancel} disabled={uploading}>
                                 Отмена
                             </Button>
-                            <Button 
-                                type="submit" 
+                            <Button
+                                type="submit"
                                 className="bg-belek-red hover:bg-red-700"
                                 disabled={uploading}
                             >

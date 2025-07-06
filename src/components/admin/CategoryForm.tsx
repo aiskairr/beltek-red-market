@@ -8,7 +8,7 @@ import { Plus, Upload, X } from "lucide-react";
 import { CategoryFormData } from '../../hooks/useCategories';
 
 interface CategoryFormProps {
-  onSubmit: (formData: CategoryFormData) => Promise<void>;
+  onSubmit:any;
   loading?: boolean;
 }
 
