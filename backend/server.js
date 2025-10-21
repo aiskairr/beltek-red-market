@@ -9,12 +9,29 @@ const PORT = process.env.PORT || 3001;
 const MOYSKLAD_TOKEN = 'Bearer 3df691b112eee7a9e14a124222ff313ed0e7d646';
 const MOYSKLAD_API_URL = 'https://api.moysklad.ru/api/remap/1.2';
 
-// Enable CORS для всех доменов (или укажите свой домен)
+// Enable CORS для всех доменов
 app.use(cors({
-  origin: '*', // В продакшене замените на ваш домен: 'https://yourdomain.com'
+  origin: '*', // Разрешаем все домены
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: false,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
+
+// Дополнительные CORS заголовки
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  
+  // Обрабатываем OPTIONS запросы
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  
+  next();
+});
 
 app.use(express.json());
 
