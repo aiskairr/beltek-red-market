@@ -49,7 +49,6 @@ const App = () => (
               <Route path="category/:categorySlug" element={<Category />} />
               <Route path="category/:categorySlug/:subCategorySlug" element={<Category />} />
               <Route path="product/:productId" element={<ProductDetail />} />
-              <Route path="admin" element={<Admin />} />
               <Route path="FAQpage" element={<FAQPage />} />
               <Route path="CreditPage" element={<CreditPage />} />
               <Route path="about" element={<CompanyPage />} />

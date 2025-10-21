@@ -7,71 +7,24 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useCart, Product } from '@/hooks/use-cart';
 import { ProductCard } from '@/components/ProductCard';
-import { supabase } from '@/lib/supabase';
+import { useMoySkladProduct, useMoySkladProductsByCategory } from '@/hooks/useProduct';
 
 const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { addItem, getCount } = useCart();
 
-  useEffect(() => {
-    const fetchProductAndRelated = async () => {
-      // ✅ 1. Получаем товар по ID
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", productId)
-        .single();
-
-      if (productError || !productData) {
-        console.error("Ошибка загрузки товара:", productError?.message);
-        setProduct(null);
-        return;
-      }
-
-      // Парсим characteristics и images если это строки
-      const parsedProduct = {
-        ...productData,
-        characteristics: typeof productData.characteristics === 'string'
-          ? JSON.parse(productData.characteristics)
-          : productData.characteristics || [],
-        images: typeof productData.images === 'string'
-          ? JSON.parse(productData.images)
-          : productData.images || []
-      };
-
-      setProduct(parsedProduct);
-
-      // ✅ 2. Получаем похожие товары по категории
-      const { data: relatedData, error: relatedError } = await supabase
-        .from("products")
-        .select("*")
-        .eq("category", productData.category)
-        .neq("id", productData.id)
-        .limit(4);
-
-      if (relatedError) {
-        console.error("Ошибка загрузки похожих товаров:", relatedError.message);
-      } else {
-        // Парсим характеристики для похожих товаров тоже
-        const parsedRelated = (relatedData || []).map(item => ({
-          ...item,
-          characteristics: typeof item.characteristics === 'string'
-            ? JSON.parse(item.characteristics)
-            : item.characteristics || [],
-          images: typeof item.images === 'string'
-            ? JSON.parse(item.images)
-            : item.images || []
-        }));
-        setRelatedProducts(parsedRelated);
-      }
-    };
-
-    if (productId) fetchProductAndRelated();
-  }, [productId]);
+  // Fetch product using MoySklad hook
+  const { data: product, isLoading: productLoading } = useMoySkladProduct(productId || '');
+  
+  // Fetch related products by category
+  const { data: relatedProductsData = [] } = useMoySkladProductsByCategory(product?.category || '');
+  
+  // Filter out current product and limit to 4
+  const relatedProducts = relatedProductsData
+    .filter(p => p.id !== productId)
+    .slice(0, 4);
 
   const handleAddToCart = () => {
     if (product) {

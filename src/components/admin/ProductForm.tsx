@@ -3,12 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { supabase } from '@/lib/supabase';
 import { useToast } from "@/hooks/use-toast";
-import { Category } from '../../hooks/useCategories';
+import { Category } from '@/hooks/useCategories';
 import { Brand } from "@/hooks/useBrands";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, X, ImageIcon } from "lucide-react";
+
+// Note: Product creation is disabled with MoySklad integration
+// All product management must be done through MoySklad interface
 
 interface ProductFormProps {
     categories: Category[];
@@ -337,7 +339,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, brands, on
                             <FormField
                                 control={form.control}
                                 name="brand"
-                                rules={{ required: "Выберите бренд" }}
+                                // rules={{ required: "Выберите бренд" }}
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Бренд</FormLabel>

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Menu, Search, ShoppingCart, User, X, ChevronDown, ChevronUp, Phone, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/use-cart";
-import { supabase } from "@/lib/supabase";
+import { moySkladAPI } from "@/lib/moysklad";
 
 export const Header = ({ categories }: any) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -55,7 +55,7 @@ export const Header = ({ categories }: any) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Search products in Supabase
+  // Search products in MoySklad
   const searchProducts = async (query) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -65,21 +65,22 @@ export const Header = ({ categories }: any) => {
 
     setSearchLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, price, image, brand, category")
-        .or(
-          `name.ilike.%${query}%, brand.ilike.%${query}%, description.ilike.%${query}%`
-        )
-        .limit(8);
+      const response = await moySkladAPI.getProducts({
+        search: query,
+        limit: 8
+      });
 
-      if (error) {
-        console.error("Ошибка поиска:", error.message);
-        setSearchResults([]);
-      } else {
-        setSearchResults(data || []);
-        setShowSearchResults(true);
-      }
+      const products = response.rows.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: (p.salePrices?.[0]?.value || 0) / 100,
+        image: '', // Images would need separate fetch
+        brand: p.attributes?.find(a => a.name.toLowerCase() === 'бренд')?.value || '',
+        category: p.pathName?.split('/')[0] || ''
+      }));
+
+      setSearchResults(products || []);
+      setShowSearchResults(true);
     } catch (error) {
       console.error("Ошибка поиска:", error);
       setSearchResults([]);
@@ -312,9 +313,7 @@ export const Header = ({ categories }: any) => {
             {categories?.map((category, index) => (
               <li
                 key={category.category}
-                className="relative"
-                onMouseEnter={() => handleMouseEnter(index)}
-                onMouseLeave={handleMouseLeave}
+                className="relative group"
               >
                 <Link
                   to={`/category/${category.category}`}
@@ -333,25 +332,23 @@ export const Header = ({ categories }: any) => {
                   )}
                 </Link>
 
-                {/* Dropdown menu */}
-                {category.mini_categories &&
-                  category.mini_categories.length > 0 &&
-                  activeDropdown === index && (
-                    <div className="absolute top-full left-0 bg-white shadow-lg border border-gray-200 min-w-48 z-50">
-                      <ul className="py-2">
-                        {category.mini_categories.map((miniCategory, miniIndex) => (
-                          <li key={miniIndex}>
-                            <Link
-                              to={`/category/${category.category}/${miniCategory}`}
-                              className="block px-4 py-2 text-gray-700 hover:bg-belek-red hover:text-white transition-colors"
-                            >
-                              {miniCategory}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                {/* Dropdown menu - показывается при hover через CSS */}
+                {category.mini_categories && category.mini_categories.length > 0 && (
+                  <div className="absolute top-full left-0 bg-white shadow-lg border border-gray-200 min-w-48 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <ul className="py-2">
+                      {category.mini_categories.map((miniCategory, miniIndex) => (
+                        <li key={miniIndex}>
+                          <Link
+                            to={`/category/${category.category}/${miniCategory}`}
+                            className="block px-4 py-2 text-gray-700 hover:bg-belek-red hover:text-white transition-colors whitespace-nowrap"
+                          >
+                            {miniCategory}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

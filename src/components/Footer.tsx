@@ -12,7 +12,6 @@ export const Footer = ({categories}:any) => {
               <li><Link to="/" className="hover:text-belek-red transition-colors">Главная</Link></li>
               <li><Link to="/" className="hover:text-belek-red transition-colors">О нас</Link></li>
               <li><Link to="/" className="hover:text-belek-red transition-colors">Доставка и оплата</Link></li>
-              <li><Link to="/admin" className="hover:text-belek-red transition-colors">Администрирование</Link></li>
             </ul>
           </div>
 

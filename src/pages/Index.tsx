@@ -4,7 +4,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/hooks/use-cart';
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useMoySkladProducts } from '@/hooks/useProduct';
 import mainpage from "../../public/mainpage2.png"
 import { useBrands } from '@/hooks/useBrands';
 import saleimage from "../../public/saleimage.png"
@@ -16,30 +16,12 @@ import main3 from "../../public/3main.png"
 
 const Index = () => {
 
-  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   // const { brands } = useBrands()
   const { categories: categoriesData, loading: CategoriesLoading } = useCategoriesWithMutations();
-
-  useEffect(() => {
-    const fetchFeaturedProducts = async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(8); // можно изменить лимит
-
-      if (error) {
-        console.error("Ошибка загрузки товаров:", error.message);
-      } else {
-        setFeaturedProducts(data || []);
-      }
-
-      setLoading(false);
-    };
-
-    fetchFeaturedProducts();
-  }, []);
+  
+  // Fetch featured products using MoySklad hook
+  const { data: productsData, isLoading: loading } = useMoySkladProducts({}, 8, 1);
+  const featuredProducts = productsData?.products || [];
 
  
   const slides = [
@@ -233,22 +215,47 @@ const Index = () => {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {categoriesData.map((category) => (
-                  <Link
-                    key={category.category}
-                    to={`/category/${category.category}`}
-                    className="bg-belek-gray rounded-lg p-4 text-center transition-transform hover:-translate-y-1 hover:shadow-md"
-                  >
-                    <div className="aspect-square bg-white rounded-lg flex items-center justify-center mb-3 overflow-hidden">
-                      <img
-                        src={category.image}
-                        alt={"Картинка"}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <h3 className="font-medium">{category.category}</h3>
-                  </Link>
+                  <div key={category.category} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                    {/* Основная категория */}
+                    <Link
+                      to={`/category/${category.category}`}
+                      className="block bg-belek-red text-white p-4 hover:bg-red-700 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-lg">{category.category}</h3>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </Link>
+                    
+                    {/* Подкатегории */}
+                    {category.mini_categories && category.mini_categories.length > 0 && (
+                      <div className="p-3 bg-gray-50">
+                        <div className="grid grid-cols-2 gap-2">
+                          {category.mini_categories.slice(0, 6).map((miniCategory, index) => (
+                            <Link
+                              key={index}
+                              to={`/category/${category.category}/${miniCategory}`}
+                              className="text-sm text-gray-700 hover:text-belek-red hover:bg-white px-3 py-2 rounded transition-colors border border-gray-200 hover:border-belek-red"
+                            >
+                              {miniCategory}
+                            </Link>
+                          ))}
+                        </div>
+                        {category.mini_categories.length > 6 && (
+                          <Link
+                            to={`/category/${category.category}`}
+                            className="block text-center text-sm text-belek-red hover:underline mt-2"
+                          >
+                            Показать все ({category.mini_categories.length})
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

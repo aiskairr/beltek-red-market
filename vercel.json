@@ -1,0 +1,23 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/moysklad/(.*)",
+      "destination": "https://api.moysklad.ru/api/remap/1.2/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/moysklad/(.*)",
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer 3df691b112eee7a9e14a124222ff313ed0e7d646"
+        }
+      ]
+    }
+  ]
+}

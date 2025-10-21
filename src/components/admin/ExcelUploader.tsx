@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, Database, AlertCircle, CheckCircle, X, Eye, Package, Tags } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
+// Note: Excel upload is disabled with MoySklad integration
+// All data management must be done through MoySklad interface
 
 const DualExcelUploader = () => {
   // Состояние для продуктов

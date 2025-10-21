@@ -43,41 +43,42 @@ const Category = () => {
   // Определяем текущую категорию
   const currentCategory = useMemo(() => {
     if (categorySlug === 'all') {
-      return { id: 0, category: 'Все товары', mini_categories: [] };
+      return { id: '0', category: 'Все товары', mini_categories: [], pathName: '' };
     }
 
     const decodedSlug = decodeURIComponent(categorySlug);
-    return categories.find(cat =>
+    
+    // Ищем категорию по имени или pathName
+    const found = categories.find(cat =>
       cat.category === decodedSlug ||
+      cat.pathName === decodedSlug ||
       cat.id.toString() === categorySlug
-    ) || { id: 0, category: decodedSlug, mini_categories: [] };
+    );
+    
+    if (found) {
+      console.log('Found category:', found);
+      return found;
+    }
+    
+    // Если не нашли, создаем временную
+    return { id: '0', category: decodedSlug, mini_categories: [], pathName: decodedSlug };
   }, [categories, categorySlug]);
 
   // Создаем фильтры для продуктов
-  const productFilters: ProductFilters = useMemo(() => {
-    const filters: ProductFilters = {};
+const productFilters: ProductFilters = useMemo(() => {
+  const filters: ProductFilters = {};
+  
+  // ВРЕМЕННО: загружаем все товары без фильтров
+  // Фильтрация будет на фронтенде в useMemo выше
+  
+  console.log('📦 Final filters (empty for now):', filters);
+  return filters;
+}, []);
 
-    if (categorySlug !== 'all' && currentCategory?.category) {
-      filters.category = currentCategory.category;
-    }
-
-    if (subCategorySlug) {
-      filters.mini_category = subCategorySlug;
-    }
-
-    if (selectedBrands.length > 0) {
-      filters.brand = selectedBrands[0]; // API поддерживает только один бренд, можно расширить
-    }
-
-    if (priceRange[0] > 0 || priceRange[1] < 200000) {
-      filters.minPrice = priceRange[0];
-      filters.maxPrice = priceRange[1];
-    }
-
-    return filters;
-  }, [categorySlug, currentCategory, subCategorySlug, selectedBrands, priceRange]);
-
-  // Используем infinite scroll для продуктов
+// Используем infinite scroll для продуктов
+  // Для основной категории (без подкатегории) загружаем больше товаров для правильного подсчета
+  const pageSize = !subCategorySlug ? 50 : 9;
+  
   const {
     data: productsData,
     fetchNextPage,
@@ -85,26 +86,98 @@ const Category = () => {
     isFetchingNextPage,
     isLoading: productsLoading,
     error: productsError
-  } = useInfiniteProducts(productFilters, 9); // 9 товаров на страницу как в оригинале
+  } = useInfiniteProducts(productFilters, pageSize);
 
   // Получаем все продукты из всех страниц
-  const products = useMemo(() => {
-    return productsData?.pages.flatMap(page => page.products) || [];
-  }, [productsData]);
+// Получаем все продукты из всех страниц И ФИЛЬТРУЕМ ИХ
+const products = useMemo(() => {
+  let allProducts = productsData?.pages.flatMap(page => page.products) || [];
+  
+  console.log('📊 === PRODUCTS DEBUG ===');
+  console.log('Total products before filter:', allProducts.length);
+  console.log('Category slug:', categorySlug);
+  console.log('Sub-category slug:', subCategorySlug);
+  
+  // Фильтруем по подкатегории если она указана
+  if (subCategorySlug) {
+    const decodedSubCat = decodeURIComponent(subCategorySlug).toLowerCase();
+    console.log('Filtering by subcategory:', decodedSubCat);
+    
+    allProducts = allProducts.filter(product => {
+      if (!product.pathName) return false;
+      
+      // Извлекаем подкатегорию из pathName
+      // Формат: "5. Мелкая бытовая техника/Блендеры и Чопперы"
+      const parts = product.pathName.split('/');
+      if (parts.length < 2) return false;
+      
+      const productSubCategory = parts[1].trim().toLowerCase();
+      const matches = productSubCategory === decodedSubCat;
+      
+      console.log(`Product: "${product.name}" | SubCat: "${productSubCategory}" | Matches: ${matches}`);
+      
+      return matches;
+    });
+    
+    console.log('Products after filter:', allProducts.length);
+  }
+  
+  // Фильтруем по основной категории если указана
+  if (categorySlug !== 'all' && !subCategorySlug) {
+    const decodedCat = decodeURIComponent(categorySlug).toLowerCase();
+    
+    allProducts = allProducts.filter(product => {
+      if (!product.pathName) return false;
+      
+      // Извлекаем основную категорию из pathName
+      const parts = product.pathName.split('/');
+      const mainCategory = parts[0].trim().toLowerCase();
+      
+      // Сравниваем с учетом того что может быть "4. Климатическая техника"
+      return mainCategory.includes(decodedCat) || decodedCat.includes(mainCategory);
+    });
+  }
+  
+  console.log('Final products count:', allProducts.length);
+  console.log('=====================');
+  
+  return allProducts;
+}, [productsData, categorySlug, subCategorySlug]);
 
   const totalCount = productsData?.pages[0]?.totalCount || 0;
 
   // Подкатегории из текущей категории
-  const subCategories: SubCategory[] = useMemo(() => {
-    if (!currentCategory?.mini_categories) return [];
+const subCategories: SubCategory[] = useMemo(() => {
+  console.log('=== SUBCATEGORIES DEBUG ===');
+  console.log('Current category:', currentCategory);
+  
+  if (!currentCategory?.mini_categories || !currentCategory?.pathName) {
+    return [];
+  }
 
-    return currentCategory.mini_categories.map(name => ({
+  // Подсчитываем количество товаров в каждой подкатегории
+  const subs = currentCategory.mini_categories.map(name => {
+    // Ищем товары где pathName заканчивается на эту подкатегорию
+    const count = products.filter(p => {
+      if (!p.pathName) return false;
+      const parts = p.pathName.split('/');
+      if (parts.length < 2) return false;
+      const subCat = parts[1].trim();
+      return subCat.toLowerCase() === name.toLowerCase();
+    }).length;
+    
+    console.log(`Subcategory "${name}": ${count} products`);
+    
+    return {
       name,
       slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-      count: 0 // Можно добавить подсчет, если нужно
-    }));
-  }, [currentCategory]);
-
+      count: count
+    };
+  });
+  
+  console.log('===========================');
+  return subs;
+}, [currentCategory, products]);
   // Доступные бренды в категории (фильтруем по продуктам)
   const availableBrandsInCategory = useMemo(() => {
     const brandNames = new Set<string>();
@@ -245,9 +318,11 @@ const Category = () => {
     clearFiltersFromStorage();
   };
 
-  const handleSubCategoryClick = (subCatSlug: string) => {
-    navigate(`/category/${categorySlug}/${subCatSlug}`);
-  };
+const handleSubCategoryClick = (subCatName: string) => {
+  // Кодируем имя для URL
+  const encodedName = encodeURIComponent(subCatName);
+  navigate(`/category/${categorySlug}/${encodedName}`);
+};
 
   const handleBackToCategory = () => {
     navigate(`/category/${categorySlug}`);
