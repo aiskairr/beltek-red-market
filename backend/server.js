@@ -1,12 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// МойСклад API credentials
-const MOYSKLAD_TOKEN = 'Bearer 3df691b112eee7a9e14a124222ff313ed0e7d646';
+// МойСклад API credentials (из переменных окружения)
+const MOYSKLAD_TOKEN = process.env.MOYSKLAD_TOKEN || 'Bearer 26c3d168f4406b10d12a792b60c0c61a8cc77c56';
 const MOYSKLAD_API_URL = 'https://api.moysklad.ru/api/remap/1.2';
 
 // Enable CORS для всех доменов
