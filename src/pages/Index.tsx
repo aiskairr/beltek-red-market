@@ -13,6 +13,7 @@ import {FullPageLoader} from "../components/Preloader"
 import main1 from "../../public/main1.png"
 import main2 from "../../public/2main.png"
 import main3 from "../../public/3main.png"
+import { cleanCategoryName } from '@/lib/moysklad';
 
 const Index = () => {
 
@@ -225,7 +226,7 @@ const Index = () => {
                       className="block bg-belek-red text-white p-4 hover:bg-red-700 transition-colors"
                     >
                       <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-lg">{category.category}</h3>
+                        <h3 className="font-bold text-lg">{cleanCategoryName(category.category)}</h3>
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -242,7 +243,7 @@ const Index = () => {
                               to={`/category/${category.category}/${miniCategory}`}
                               className="text-sm text-gray-700 hover:text-belek-red hover:bg-white px-3 py-2 rounded transition-colors border border-gray-200 hover:border-belek-red"
                             >
-                              {miniCategory}
+                              {cleanCategoryName(miniCategory)}
                             </Link>
                           ))}
                         </div>

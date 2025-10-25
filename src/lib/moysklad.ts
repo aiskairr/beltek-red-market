@@ -294,17 +294,18 @@ export const moySkladAPI = {
 };
 
 // Helper function to remove number prefixes like "1. ", "2. " etc from category names
-const cleanCategoryName = (name: string): string => {
+// Use this ONLY for display, not for internal data/matching
+export const cleanCategoryName = (name: string): string => {
   // Remove leading digits followed by dot and space: "1. Category" -> "Category"
   return name.replace(/^\d+\.\s*/, '').trim();
 };
 
 // Helper functions to transform MoySklad data to our app format
 export const transformMoySkladProduct = (msProduct: MoySkladProduct) => {
-  // Extract category from pathName
+  // Extract category from pathName - keep original for matching
   const pathParts = msProduct.pathName?.split('/') || [];
-  const category = cleanCategoryName(pathParts[0] || '');
-  const miniCategory = cleanCategoryName(pathParts[1] || '');
+  const category = pathParts[0] || '';
+  const miniCategory = pathParts[1] || '';
 
   // Get price (MoySklad stores in kopecks, divide by 100 for rubles)
   let price = 0;
@@ -363,18 +364,15 @@ export const transformMoySkladProductFolder = (msFolder: MoySkladProductFolder) 
   // Главная категория - когда pathName пустой (нет родителя)
   const isMainCategory = !pathName || pathName.trim() === '';
   
-  // Clean parent path from number prefixes for matching
-  const cleanedParentPath = isMainCategory ? null : cleanCategoryName(pathName);
-  
   // Для отладки
   console.log(`Folder: "${msFolder.name}", pathName: "${pathName}", isMain: ${isMainCategory}`);
   
   return {
     id: msFolder.id,
-    name: cleanCategoryName(msFolder.name),
+    name: msFolder.name, // Keep original name for matching
     pathName: pathName,
     isMainCategory: isMainCategory,
-    parentPath: cleanedParentPath, // Clean parent path for matching
+    parentPath: isMainCategory ? null : pathName, // Keep original for matching
     description: msFolder.description,
     archived: msFolder.archived,
   };

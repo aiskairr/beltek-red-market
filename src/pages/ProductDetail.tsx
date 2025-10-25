@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCart, Product } from '@/hooks/use-cart';
 import { ProductCard } from '@/components/ProductCard';
 import { useMoySkladProduct, useMoySkladProductsByCategory } from '@/hooks/useProduct';
+import { cleanCategoryName } from '@/lib/moysklad';
 
 const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -99,12 +100,7 @@ const ProductDetail = () => {
             <Link to="/" className="hover:text-belek-red">Главная</Link>
             <span className="mx-2">/</span>
             <Link to={`/category/${product.category}`} className="hover:text-belek-red">
-              {product.category === 'refrigerators' && 'Холодильники'}
-              {product.category === 'washing-machines' && 'Стиральные машины'}
-              {product.category === 'tvs' && 'Телевизоры'}
-              {product.category === 'kitchen' && 'Кухонная техника'}
-              {product.category === 'air-conditioners' && 'Кондиционеры'}
-              {product.category === 'vacuum-cleaners' && 'Пылесосы'}
+              {cleanCategoryName(product.category)}
             </Link>
             <span className="mx-2">/</span>
             <span>{product.name}</span>
