@@ -1,33 +1,20 @@
 // Admin.tsx (основной компонент)
 import { useState } from 'react';
-import { Layout } from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Users, ShoppingCart, Tag } from "lucide-react";
-import { AdminHeader } from '@/components/admin/AdminHeader';
+import { Package, ShoppingCart, Tag } from "lucide-react";
 import { ProductsTab } from '@/components/admin/ProductsTab';
 import { CategoriesTab } from '@/components/admin/CategoriesTab';
-import { useAuth } from '@/hooks/useAuth';
 import { BrandsTab } from '@/components/admin/BrandsTab';
 import ExcelUploader from '@/components/admin/ExcelUploader';
 
 const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState("products");
-  const { loading, logout } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-belek-red mx-auto"></div>
-          <p className="mt-4 text-lg">Загрузка...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
       <div className="container mx-auto py-8">
-        <AdminHeader onLogout={logout} />
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Админ панель</h1>
+        </div>
 
         <Tabs defaultValue="products" onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-4 mb-6">

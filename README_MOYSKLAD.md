@@ -45,7 +45,7 @@ npm run build
 Located in `src/lib/moysklad.ts`:
 ```typescript
 API URL: https://api.moysklad.ru/api/remap/1.2
-Token: 3df691b112eee7a9e14a124222ff313ed0e7d646
+Token: e66fb46aeaa51e135b6f00556916a1ffb63c9d48
 ```
 
 ### ⚠️ Security Warning
@@ -53,7 +53,7 @@ Token: 3df691b112eee7a9e14a124222ff313ed0e7d646
 
 1. Create `.env` file:
 ```env
-VITE_MOYSKLAD_TOKEN=3df691b112eee7a9e14a124222ff313ed0e7d646
+VITE_MOYSKLAD_TOKEN=e66fb46aeaa51e135b6f00556916a1ffb63c9d48
 VITE_ADMIN_EMAIL=admin@beltek.com
 VITE_ADMIN_PASSWORD=admin123
 ```

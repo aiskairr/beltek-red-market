@@ -126,6 +126,7 @@ const ProductDetail = () => {
                   <img
                     src={productImages[selectedImageIndex]}
                     alt={`${product.name} - изображение ${selectedImageIndex + 1}`}
+                    loading="lazy"
                     className="max-w-full max-h-[400px] object-contain"
                   />
 
@@ -171,6 +172,7 @@ const ProductDetail = () => {
                         <img
                           src={image}
                           alt={`${product.name} - миниатюра ${index + 1}`}
+                          loading="lazy"
                           className="w-full h-full object-contain"
                         />
                       </button>

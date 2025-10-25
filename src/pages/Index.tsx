@@ -20,7 +20,7 @@ const Index = () => {
   const { categories: categoriesData, loading: CategoriesLoading } = useCategoriesWithMutations();
   
   // Fetch featured products using MoySklad hook
-  const { data: productsData, isLoading: loading } = useMoySkladProducts({}, 8, 1);
+  const { data: productsData, isLoading: loading } = useMoySkladProducts({}, 12, 1);
   const featuredProducts = productsData?.products || [];
 
  
@@ -59,11 +59,11 @@ const Index = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      nextSlide();
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [slides.length]);
 
   const nextSlide = () => {
     if (!isAnimating) {
@@ -143,6 +143,7 @@ const Index = () => {
                     <img
                       src={current.image}
                       alt={current.title}
+                      loading="lazy"
                       className="w-full h-auto rounded-2xl shadow-2xl"
                     />
 
@@ -320,6 +321,7 @@ const Index = () => {
                     <img
                       src={brand.image}
                       alt={brand.name}
+                      loading="lazy"
                       className="max-h-full max-w-full object-contain"
                     />
                   </div>

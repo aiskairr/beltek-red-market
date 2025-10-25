@@ -34,9 +34,10 @@ const Category = () => {
   const { data: brands = [], isLoading: brandsLoading } = useBrands();
 
   // Локальные состояния для фильтров
+  const DEFAULT_MAX_PRICE = 999999;
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [tempPriceRange, setTempPriceRange] = useState<[number, number]>([0, 200000]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 200000]);
+  const [tempPriceRange, setTempPriceRange] = useState<[number, number]>([0, DEFAULT_MAX_PRICE]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, DEFAULT_MAX_PRICE]);
   const [sortBy, setSortBy] = useState<string>('featured');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -68,12 +69,30 @@ const Category = () => {
 const productFilters: ProductFilters = useMemo(() => {
   const filters: ProductFilters = {};
   
-  // ВРЕМЕННО: загружаем все товары без фильтров
-  // Фильтрация будет на фронтенде в useMemo выше
+  // Фильтруем по категории
+  if (categorySlug && categorySlug !== 'all' && currentCategory?.category) {
+    filters.category = currentCategory.category;
+  }
   
-  console.log('📦 Final filters (empty for now):', filters);
+  // Фильтруем по подкатегории если указана
+  if (subCategorySlug) {
+    filters.mini_category = decodeURIComponent(subCategorySlug);
+  }
+  
+  // Фильтруем по бренду
+  if (selectedBrands.length > 0) {
+    filters.brand = selectedBrands[0]; // API поддерживает один бренд
+  }
+  
+  // Фильтруем по цене (только если пользователь изменил диапазон)
+  const DEFAULT_MAX = 999999;
+  if (priceRange[0] > 0 || priceRange[1] < DEFAULT_MAX) {
+    filters.minPrice = priceRange[0];
+    filters.maxPrice = priceRange[1];
+  }
+  
   return filters;
-}, []);
+}, [categorySlug, subCategorySlug, currentCategory, selectedBrands, priceRange]);
 
 // Используем infinite scroll для продуктов
   // Для основной категории (без подкатегории) загружаем больше товаров для правильного подсчета
@@ -88,61 +107,14 @@ const productFilters: ProductFilters = useMemo(() => {
     error: productsError
   } = useInfiniteProducts(productFilters, pageSize);
 
-  // Получаем все продукты из всех страниц
-// Получаем все продукты из всех страниц И ФИЛЬТРУЕМ ИХ
+  // Получаем все продукты из всех страниц (фильтрация уже на API уровне)
 const products = useMemo(() => {
-  let allProducts = productsData?.pages.flatMap(page => page.products) || [];
+  const allProducts = productsData?.pages.flatMap(page => page.products) || [];
   
-  console.log('📊 === PRODUCTS DEBUG ===');
-  console.log('Total products before filter:', allProducts.length);
-  console.log('Category slug:', categorySlug);
-  console.log('Sub-category slug:', subCategorySlug);
-  
-  // Фильтруем по подкатегории если она указана
-  if (subCategorySlug) {
-    const decodedSubCat = decodeURIComponent(subCategorySlug).toLowerCase();
-    console.log('Filtering by subcategory:', decodedSubCat);
-    
-    allProducts = allProducts.filter(product => {
-      if (!product.pathName) return false;
-      
-      // Извлекаем подкатегорию из pathName
-      // Формат: "5. Мелкая бытовая техника/Блендеры и Чопперы"
-      const parts = product.pathName.split('/');
-      if (parts.length < 2) return false;
-      
-      const productSubCategory = parts[1].trim().toLowerCase();
-      const matches = productSubCategory === decodedSubCat;
-      
-      console.log(`Product: "${product.name}" | SubCat: "${productSubCategory}" | Matches: ${matches}`);
-      
-      return matches;
-    });
-    
-    console.log('Products after filter:', allProducts.length);
-  }
-  
-  // Фильтруем по основной категории если указана
-  if (categorySlug !== 'all' && !subCategorySlug) {
-    const decodedCat = decodeURIComponent(categorySlug).toLowerCase();
-    
-    allProducts = allProducts.filter(product => {
-      if (!product.pathName) return false;
-      
-      // Извлекаем основную категорию из pathName
-      const parts = product.pathName.split('/');
-      const mainCategory = parts[0].trim().toLowerCase();
-      
-      // Сравниваем с учетом того что может быть "4. Климатическая техника"
-      return mainCategory.includes(decodedCat) || decodedCat.includes(mainCategory);
-    });
-  }
-  
-  console.log('Final products count:', allProducts.length);
-  console.log('=====================');
+  console.log('📊 Products loaded:', allProducts.length);
   
   return allProducts;
-}, [productsData, categorySlug, subCategorySlug]);
+}, [productsData]);
 
   const totalCount = productsData?.pages[0]?.totalCount || 0;
 
@@ -195,9 +167,11 @@ const subCategories: SubCategory[] = useMemo(() => {
 
   // Вычисляем диапазон цен из текущих продуктов
   const { minPrice, maxPrice } = useMemo(() => {
-    if (products.length === 0) return { minPrice: 0, maxPrice: 200000 };
+    if (products.length === 0) return { minPrice: 0, maxPrice: DEFAULT_MAX_PRICE };
 
-    const prices = products.map(p => p.price);
+    const prices = products.map(p => p.price).filter(p => p > 0);
+    if (prices.length === 0) return { minPrice: 0, maxPrice: DEFAULT_MAX_PRICE };
+    
     return {
       minPrice: Math.min(...prices),
       maxPrice: Math.max(...prices)
@@ -247,27 +221,21 @@ const subCategories: SubCategory[] = useMemo(() => {
       const savedFilters = loadFiltersFromStorage(categorySlug);
       if (savedFilters) {
         setSelectedBrands(savedFilters.selectedBrands || []);
-        setPriceRange(savedFilters.priceRange || [0, 200000]);
-        setTempPriceRange(savedFilters.priceRange || [0, 200000]);
+        setPriceRange(savedFilters.priceRange || [0, DEFAULT_MAX_PRICE]);
+        setTempPriceRange(savedFilters.priceRange || [0, DEFAULT_MAX_PRICE]);
         setSortBy(savedFilters.sortBy || 'featured');
       } else {
         // Сбрасываем фильтры для новой категории
         setSelectedBrands([]);
         setSortBy('featured');
-        setPriceRange([0, 200000]);
-        setTempPriceRange([0, 200000]);
+        setPriceRange([0, DEFAULT_MAX_PRICE]);
+        setTempPriceRange([0, DEFAULT_MAX_PRICE]);
       }
     }
   }, [categorySlug]);
 
-  // Обновляем диапазон цен при загрузке данных
-  useEffect(() => {
-    if (products.length > 0 && priceRange[0] === 0 && priceRange[1] === 200000) {
-      const newRange: [number, number] = [minPrice, maxPrice];
-      setPriceRange(newRange);
-      setTempPriceRange(newRange);
-    }
-  }, [products, minPrice, maxPrice, priceRange]);
+  // НЕ обновляем автоматически - используем сохраненные фильтры
+  // Диапазон цен устанавливается пользователем вручную
 
   // Обработчики
   const handleBrandToggle = (brand: string) => {

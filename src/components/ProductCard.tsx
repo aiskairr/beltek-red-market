@@ -45,7 +45,8 @@ export const ProductCard = ({ product }: any) => {
         <div className="relative pt-[100%] overflow-hidden">
           <img 
             src={product?.image} 
-            alt={product.name} 
+            alt={product.name}
+            loading="lazy"
             className="absolute top-0 left-0 w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute top-3 right-3">

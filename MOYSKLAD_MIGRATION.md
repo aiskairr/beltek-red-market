@@ -64,7 +64,7 @@ src/
 ### Current Settings
 ```typescript
 API URL: https://api.moysklad.ru/api/remap/1.2
-Token: 3df691b112eee7a9e14a124222ff313ed0e7d646
+Token: e66fb46aeaa51e135b6f00556916a1ffb63c9d48
 ```
 
 **⚠️ IMPORTANT**: The API token is currently hardcoded in `src/lib/moysklad.ts`. For production:

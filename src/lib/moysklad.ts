@@ -177,16 +177,30 @@ export const moySkladAPI = {
 
     const url = `${MOYSKLAD_API_URL}/entity/product?${queryParams.toString()}`;
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders(),
-    });
+    console.log('🌐 API Request:', url);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
 
-    if (!response.ok) {
-      throw new Error(`MoySklad API Error: ${response.status} ${response.statusText}`);
+      console.log('📡 API Response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error Response:', errorText);
+        throw new Error(`MoySklad API Error: ${response.status} ${response.statusText}. Details: ${errorText.substring(0, 200)}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof TypeError) {
+        console.error('❌ Network error - прокси сервер недоступен:', error);
+        throw new Error(`Не удалось подключиться к прокси серверу (${MOYSKLAD_API_URL}). Проверьте что сервер запущен.`);
+      }
+      throw error;
     }
-
-    return response.json();
   },
 
   async getProduct(id: string): Promise<MoySkladProduct> {
@@ -279,32 +293,25 @@ export const moySkladAPI = {
   },
 };
 
+// Helper function to remove number prefixes like "1. ", "2. " etc from category names
+const cleanCategoryName = (name: string): string => {
+  // Remove leading digits followed by dot and space: "1. Category" -> "Category"
+  return name.replace(/^\d+\.\s*/, '').trim();
+};
+
 // Helper functions to transform MoySklad data to our app format
 export const transformMoySkladProduct = (msProduct: MoySkladProduct) => {
   // Extract category from pathName
   const pathParts = msProduct.pathName?.split('/') || [];
-  const category = pathParts[0] || '';
-  const miniCategory = pathParts[1] || '';
+  const category = cleanCategoryName(pathParts[0] || '');
+  const miniCategory = cleanCategoryName(pathParts[1] || '');
 
   // Get price (MoySklad stores in kopecks, divide by 100 for rubles)
-  // Логируем все цены чтобы понять структуру
-  if (msProduct.salePrices && msProduct.salePrices.length > 0) {
-    console.log(`📦 Product: ${msProduct.name}`);
-    console.log('All prices:', msProduct.salePrices.map(p => ({
-      priceType: p.priceType?.name,
-      value: (p.value || 0) / 100,
-      currency: p.currency
-    })));
-  }
-  
-  // Берем первую непустую цену
   let price = 0;
   if (msProduct.salePrices && msProduct.salePrices.length > 0) {
     const nonZeroPrice = msProduct.salePrices.find(p => p.value && p.value > 0);
     price = nonZeroPrice ? nonZeroPrice.value / 100 : 0;
   }
-  
-  console.log(`✅ Selected price: ${price}`);
 
   // Extract brand from attributes
   const brandAttr = msProduct.attributes?.find(
@@ -356,15 +363,18 @@ export const transformMoySkladProductFolder = (msFolder: MoySkladProductFolder) 
   // Главная категория - когда pathName пустой (нет родителя)
   const isMainCategory = !pathName || pathName.trim() === '';
   
+  // Clean parent path from number prefixes for matching
+  const cleanedParentPath = isMainCategory ? null : cleanCategoryName(pathName);
+  
   // Для отладки
   console.log(`Folder: "${msFolder.name}", pathName: "${pathName}", isMain: ${isMainCategory}`);
   
   return {
     id: msFolder.id,
-    name: msFolder.name,
+    name: cleanCategoryName(msFolder.name),
     pathName: pathName,
     isMainCategory: isMainCategory,
-    parentPath: isMainCategory ? null : pathName, // pathName уже содержит путь к родителю
+    parentPath: cleanedParentPath, // Clean parent path for matching
     description: msFolder.description,
     archived: msFolder.archived,
   };

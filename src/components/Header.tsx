@@ -70,14 +70,20 @@ export const Header = ({ categories }: any) => {
         limit: 8
       });
 
-      const products = response.rows.map(p => ({
-        id: p.id,
-        name: p.name,
-        price: (p.salePrices?.[0]?.value || 0) / 100,
-        image: '', // Images would need separate fetch
-        brand: p.attributes?.find(a => a.name.toLowerCase() === 'бренд')?.value || '',
-        category: p.pathName?.split('/')[0] || ''
-      }));
+      const products = response.rows.map(p => {
+        const categoryName = p.pathName?.split('/')[0] || '';
+        // Remove number prefixes like "1. ", "2. " etc
+        const cleanCategory = categoryName.replace(/^\d+\.\s*/, '').trim();
+        
+        return {
+          id: p.id,
+          name: p.name,
+          price: (p.salePrices?.[0]?.value || 0) / 100,
+          image: '', // Images would need separate fetch
+          brand: p.attributes?.find(a => a.name.toLowerCase() === 'бренд')?.value || '',
+          category: cleanCategory
+        };
+      });
 
       setSearchResults(products || []);
       setShowSearchResults(true);

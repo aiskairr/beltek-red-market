@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
         rewrite: (path) => path.replace(/^\/api\/moysklad/, '/api/remap/1.2'),
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, _res) => {
-            proxyReq.setHeader('Authorization', 'Bearer 3df691b112eee7a9e14a124222ff313ed0e7d646');
+            proxyReq.setHeader('Authorization', 'Bearer 26c3d168f4406b10d12a792b60c0c61a8cc77c56');
           });
         },
       },

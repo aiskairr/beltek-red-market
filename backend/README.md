@@ -16,7 +16,7 @@
    - **Plan**: Free
 
 5. Добавьте Environment Variables:
-   - `MOYSKLAD_TOKEN` = `Bearer 3df691b112eee7a9e14a124222ff313ed0e7d646`
+   - `MOYSKLAD_TOKEN` = `Bearer e66fb46aeaa51e135b6f00556916a1ffb63c9d48`
 
 6. Нажмите "Create Web Service"
 

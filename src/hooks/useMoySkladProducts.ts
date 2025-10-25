@@ -76,16 +76,52 @@ const fetchProductImages = async (productId: string): Promise<string[]> => {
 const buildFilterString = (filters: ProductFilters): string => {
   const filterParts: string[] = [];
 
-  // Note: Category and price filtering are done client-side because:
-  // - MoySklad pathName filter is complex
-  // - MoySklad doesn't support filtering on nested array fields like salePrices.value
-  // We fetch all products and filter in memory
-
+  // НЕ фильтруем на API - загружаем ВСЕ товары
+  // Фильтрация будет на клиенте (быстрее с кешем)
+  
   if (filters.inStock !== undefined) {
     filterParts.push(`archived=${!filters.inStock}`);
   }
 
   return filterParts.join(';');
+};
+
+// Cache key для localStorage
+const CACHE_VERSION = 'v3'; // Изменяйте при изменении формата кеша
+const CACHE_KEY = `moysklad_products_cache_${CACHE_VERSION}`;
+const CACHE_TIMESTAMP_KEY = `moysklad_products_cache_timestamp_${CACHE_VERSION}`;
+const CACHE_DURATION = 60 * 60 * 1000; // 1 час
+
+// Загрузить из localStorage
+const loadFromCache = (): any[] | null => {
+  try {
+    const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+    const now = Date.now();
+    
+    // Проверяем не истек ли кеш
+    if (timestamp && (now - parseInt(timestamp)) < CACHE_DURATION) {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const products = JSON.parse(cached);
+        console.log(`✅ Loaded ${products.length} products from localStorage cache`);
+        return products;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load from cache:', error);
+  }
+  return null;
+};
+
+// Сохранить в localStorage
+const saveToCache = (products: any[]) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(products));
+    localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+    console.log(`💾 Saved ${products.length} products to localStorage cache`);
+  } catch (error) {
+    console.warn('Failed to save to cache:', error);
+  }
 };
 
 // Fetch products with pagination and filters
@@ -94,85 +130,111 @@ const fetchProductsQuery = async (
   pageSize: number = DEFAULT_PAGE_SIZE,
   filters: ProductFilters = {}
 ): Promise<ProductsPage> => {
-  const offset = (page - 1) * pageSize;
+  // Сначала пробуем загрузить из кеша (уже трансформированные продукты!)
+  const cachedProducts = loadFromCache();
+  let products: any[];
   
-  // Если есть фильтр по подкатегории - загружаем ВСЕ товары
-  const actualLimit = filters.mini_category ? 1000 : pageSize;
-  
-  const params: any = {
-    limit: actualLimit, // ← Изменено
-    offset: filters.mini_category ? 0 : offset, // ← Изменено
-    order: 'updated,desc',
-  };
+  if (cachedProducts) {
+    // Используем готовые продукты из кеша - МГНОВЕННО!
+    products = cachedProducts;
+  } else {
+    // Кеша нет - загружаем с API и трансформируем
+    const MAX_LIMIT = 1000;
+    let allRows: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+    
+    console.log('🔄 Loading ALL products from API...');
+    
+    try {
+      while (hasMore && allRows.length < 3000) {
+        const params: any = {
+          limit: MAX_LIMIT,
+          offset: offset,
+          order: 'updated,desc',
+        };
 
-  // Add search term
-  if (filters.searchTerm) {
-    params.search = filters.searchTerm;
+        if (filters.searchTerm) {
+          params.search = filters.searchTerm;
+        }
+
+        const filterString = buildFilterString(filters);
+        if (filterString) {
+          params.filter = filterString;
+        }
+
+        const response = await moySkladAPI.getProducts(params);
+        
+        if (!response || !response.rows) {
+          console.error('❌ Invalid API response:', response);
+          throw new Error('Получен некорректный ответ от API');
+        }
+        
+        allRows = allRows.concat(response.rows);
+        
+        console.log(`📦 Loaded ${allRows.length} / ${response.meta.size} products`);
+        
+        hasMore = response.rows.length === MAX_LIMIT && allRows.length < response.meta.size;
+        offset += MAX_LIMIT;
+      }
+      
+      console.log(`✅ Total loaded: ${allRows.length} products`);
+    } catch (error) {
+      console.error('❌ Error loading products from API:', error);
+      
+      // Более детальное логирование ошибки
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      
+      // Если это сетевая ошибка
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Не удалось подключиться к API. Проверьте соединение с прокси-сервером.');
+      }
+      
+      throw error;
+    }
+    
+    // Transform products ОДИН РАЗ
+    products = allRows.map((msProduct) => {
+      const product = transformMoySkladProduct(msProduct);
+      product.images = [];
+      // Используем data URI для placeholder чтобы избежать внешних запросов
+      product.image = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+      return product;
+    });
+    
+    // Сохраняем в кеш УЖЕ ТРАНСФОРМИРОВАННЫЕ продукты!
+    saveToCache(products);
   }
 
-  // Add filters
-  const filterString = buildFilterString(filters);
-  if (filterString) {
-    params.filter = filterString;
-  }
-
-  const response = await moySkladAPI.getProducts(params);
-  
-  // Transform products (без загрузки изображений - это вызывает таймауты)
-  const products = response.rows.map((msProduct) => {
-    const product = transformMoySkladProduct(msProduct);
-    
-    // Используем placeholder для изображений
-    product.images = [];
-    product.image = 'https://via.placeholder.com/400x400?text=No+Image';
-    
-    return product;
-  });
-
-  // Client-side filtering
+  // Клиентская фильтрация (все товары загружены, фильтруем в памяти)
   let filteredProducts = products;
   
   // Filter by category if specified
   if (filters.category) {
     filteredProducts = filteredProducts.filter(p => {
       if (!p.pathName && !p.category) return false;
-      
       const productPath = (p.pathName || p.category || '').toLowerCase();
       const filterCategory = filters.category!.toLowerCase();
-      
-      // Убираем номер категории для сравнения
       const cleanProductPath = productPath.replace(/^\d+\.\s*/, '');
       const cleanFilterCategory = filterCategory.replace(/^\d+\.\s*/, '');
-      
       return cleanProductPath === cleanFilterCategory || 
              cleanProductPath.startsWith(cleanFilterCategory + '/');
     });
   }
   
-  // Filter by mini_category if specified (this is more specific)
+  // Filter by mini_category if specified
   if (filters.mini_category) {
-    console.log('🔍 Filtering by mini_category:', filters.mini_category);
-    console.log('Products before filter:', filteredProducts.length);
-    
     filteredProducts = filteredProducts.filter(p => {
-      if (p.mini_category) {
-        const matches = p.mini_category.toLowerCase() === filters.mini_category!.toLowerCase();
-        if (matches) console.log('✅ Match by mini_category:', p.name);
-        return matches;
-      }
-      
-      if (p.pathName) {
-        const pathParts = p.pathName.split('/');
-        const lastPart = pathParts[pathParts.length - 1].trim();
-        const matches = lastPart.toLowerCase() === filters.mini_category!.toLowerCase();
-        if (matches) console.log('✅ Match by pathName:', p.name, '|', lastPart);
-        return matches;
-      }
-      
-      return false;
+      if (!p.pathName) return false;
+      const pathParts = p.pathName.split('/');
+      if (pathParts.length < 2) return false;
+      const productSubCategory = pathParts[pathParts.length - 1].trim().toLowerCase();
+      const filterSubCategory = filters.mini_category!.toLowerCase();
+      return productSubCategory === filterSubCategory;
     });
-    
-    console.log('Products after filter:', filteredProducts.length);
   }
 
   // Filter by brand if specified
@@ -191,16 +253,16 @@ const fetchProductsQuery = async (
     filteredProducts = filteredProducts.filter(p => p.price <= filters.maxPrice!);
   }
 
-  // Для подкатегорий используем количество отфильтрованных товаров
-  const totalCount = filters.mini_category ? filteredProducts.length : response.meta.size;
+  // Используем количество отфильтрованных товаров
+  const totalCount = filteredProducts.length;
   const totalPages = Math.ceil(totalCount / pageSize);
-  const hasMore = page < totalPages;
+  const hasMorePages = page < totalPages;
 
   return {
     products: filteredProducts,
     totalCount,
     totalPages,
-    hasMore,
+    hasMore: hasMorePages,
     page
   };
 };
@@ -216,8 +278,8 @@ export const useMoySkladProducts = (
   const query = useQuery({
     queryKey: [...QUERY_KEYS.products(filters, pageSize), page],
     queryFn: () => fetchProductsQuery(page, pageSize, filters),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60 * 60 * 1000, // 1 час - совпадает с localStorage кешем
+    gcTime: 2 * 60 * 60 * 1000, // 2 часа
   });
 
   if (query.error) {
@@ -236,8 +298,6 @@ export const useInfiniteMoySkladProducts = (
   filters: ProductFilters = {},
   pageSize: number = DEFAULT_PAGE_SIZE
 ) => {
-  const { toast } = useToast();
-
   const query = useInfiniteQuery({
     queryKey: QUERY_KEYS.infiniteProducts(filters, pageSize),
     queryFn: ({ pageParam = 1 }) => fetchProductsQuery(pageParam as number, pageSize, filters),
@@ -245,16 +305,13 @@ export const useInfiniteMoySkladProducts = (
       return lastPage.hasMore ? lastPage.page + 1 : undefined;
     },
     initialPageParam: 1,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 1 час - совпадает с localStorage кешем
+    gcTime: 2 * 60 * 60 * 1000, // 2 часа
   });
 
+  // Логируем ошибку в консоль вместо toast (toast вызывает бесконечный рендер)
   if (query.error) {
-    toast({
-      title: "Ошибка загрузки товаров",
-      description: (query.error as Error).message,
-      variant: "destructive",
-    });
+    console.error('Ошибка загрузки товаров:', query.error);
   }
 
   return query;
@@ -278,8 +335,8 @@ export const useMoySkladProduct = (id: string) => {
       return product;
     },
     enabled: !!id,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 1 час
+    gcTime: 2 * 60 * 60 * 1000, // 2 часа
   });
 
   if (query.error) {
@@ -320,8 +377,8 @@ export const useMoySkladProductsByCategory = (category: string) => {
       return products;
     },
     enabled: !!category,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 1 час
+    gcTime: 2 * 60 * 60 * 1000, // 2 часа
   });
 
   if (query.error) {
