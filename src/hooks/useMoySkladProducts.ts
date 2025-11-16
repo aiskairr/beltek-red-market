@@ -124,6 +124,79 @@ const saveToCache = (products: any[]) => {
   }
 };
 
+// Флаг для отслеживания фоновой загрузки
+let backgroundLoadingInProgress = false;
+
+// Функция для фоновой загрузки остальных товаров
+const loadRemainingProductsInBackground = async (
+  filters: ProductFilters = {}
+) => {
+  if (backgroundLoadingInProgress) {
+    console.log('⏭️ Background loading already in progress, skipping...');
+    return;
+  }
+
+  backgroundLoadingInProgress = true;
+  console.log('🔄 Starting background loading of remaining products...');
+
+  try {
+    const MAX_LIMIT = 1000;
+    let allRows: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore && allRows.length < 5000) {
+      const params: any = {
+        limit: MAX_LIMIT,
+        offset: offset,
+        order: 'updated,desc',
+      };
+
+      if (filters.searchTerm) {
+        params.search = filters.searchTerm;
+      }
+
+      const filterString = buildFilterString(filters);
+      if (filterString) {
+        params.filter = filterString;
+      }
+
+      const response = await moySkladAPI.getProducts(params);
+
+      if (!response || !response.rows) {
+        console.error('❌ Invalid API response:', response);
+        break;
+      }
+
+      allRows = allRows.concat(response.rows);
+
+      console.log(`📦 Background: Loaded ${allRows.length} / ${response.meta.size} products`);
+
+      hasMore = response.rows.length === MAX_LIMIT && allRows.length < response.meta.size;
+      offset += MAX_LIMIT;
+    }
+
+    console.log(`✅ Background: Total loaded ${allRows.length} products`);
+
+    // Transform products
+    const products = allRows.map((msProduct) => {
+      const product = transformMoySkladProduct(msProduct);
+      product.images = [];
+      product.image = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+      return product;
+    });
+
+    // Сохраняем полный набор в кеш
+    saveToCache(products);
+    console.log('💾 Background: Saved all products to cache');
+
+  } catch (error) {
+    console.error('❌ Background loading error:', error);
+  } finally {
+    backgroundLoadingInProgress = false;
+  }
+};
+
 // Fetch products with pagination and filters
 const fetchProductsQuery = async (
   page: number = 1,
@@ -133,80 +206,78 @@ const fetchProductsQuery = async (
   // Сначала пробуем загрузить из кеша (уже трансформированные продукты!)
   const cachedProducts = loadFromCache();
   let products: any[];
-  
+
   if (cachedProducts) {
     // Используем готовые продукты из кеша - МГНОВЕННО!
     products = cachedProducts;
+    console.log(`✅ Using ${products.length} products from cache`);
   } else {
-    // Кеша нет - загружаем с API и трансформируем
+    // Кеша нет - загружаем ТОЛЬКО ПЕРВУЮ 1000 для быстрого отображения
     const MAX_LIMIT = 1000;
-    let allRows: any[] = [];
-    let offset = 0;
-    let hasMore = true;
-    
-    console.log('🔄 Loading ALL products from API...');
-    
+
+    console.log('🚀 Fast loading: Loading first 1000 products...');
+
     try {
-      while (hasMore && allRows.length < 3000) {
-        const params: any = {
-          limit: MAX_LIMIT,
-          offset: offset,
-          order: 'updated,desc',
-        };
+      const params: any = {
+        limit: MAX_LIMIT,
+        offset: 0,
+        order: 'updated,desc',
+      };
 
-        if (filters.searchTerm) {
-          params.search = filters.searchTerm;
-        }
-
-        const filterString = buildFilterString(filters);
-        if (filterString) {
-          params.filter = filterString;
-        }
-
-        const response = await moySkladAPI.getProducts(params);
-        
-        if (!response || !response.rows) {
-          console.error('❌ Invalid API response:', response);
-          throw new Error('Получен некорректный ответ от API');
-        }
-        
-        allRows = allRows.concat(response.rows);
-        
-        console.log(`📦 Loaded ${allRows.length} / ${response.meta.size} products`);
-        
-        hasMore = response.rows.length === MAX_LIMIT && allRows.length < response.meta.size;
-        offset += MAX_LIMIT;
+      if (filters.searchTerm) {
+        params.search = filters.searchTerm;
       }
-      
-      console.log(`✅ Total loaded: ${allRows.length} products`);
+
+      const filterString = buildFilterString(filters);
+      if (filterString) {
+        params.filter = filterString;
+      }
+
+      const response = await moySkladAPI.getProducts(params);
+
+      if (!response || !response.rows) {
+        console.error('❌ Invalid API response:', response);
+        throw new Error('Получен некорректный ответ от API');
+      }
+
+      console.log(`📦 Fast load: Got ${response.rows.length} products (${response.meta.size} total available)`);
+
+      // Transform первую партию
+      products = response.rows.map((msProduct) => {
+        const product = transformMoySkladProduct(msProduct);
+        product.images = [];
+        product.image = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+        return product;
+      });
+
+      console.log(`✅ Fast load: Transformed ${products.length} products, showing immediately!`);
+
+      // Если есть еще товары - запускаем фоновую загрузку
+      if (response.meta.size > MAX_LIMIT) {
+        console.log(`🔄 Starting background load for remaining ${response.meta.size - MAX_LIMIT} products...`);
+        // Запускаем фоновую загрузку без await (не блокируем!)
+        loadRemainingProductsInBackground(filters).catch(err => {
+          console.error('Background loading failed:', err);
+        });
+      } else {
+        // Если товаров меньше 1000 - сразу сохраняем в кеш
+        saveToCache(products);
+      }
+
     } catch (error) {
       console.error('❌ Error loading products from API:', error);
-      
-      // Более детальное логирование ошибки
+
       if (error instanceof Error) {
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
       }
-      
-      // Если это сетевая ошибка
+
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error('Не удалось подключиться к API. Проверьте соединение с прокси-сервером.');
       }
-      
+
       throw error;
     }
-    
-    // Transform products ОДИН РАЗ
-    products = allRows.map((msProduct) => {
-      const product = transformMoySkladProduct(msProduct);
-      product.images = [];
-      // Используем data URI для placeholder чтобы избежать внешних запросов
-      product.image = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
-      return product;
-    });
-    
-    // Сохраняем в кеш УЖЕ ТРАНСФОРМИРОВАННЫЕ продукты!
-    saveToCache(products);
   }
 
   // Клиентская фильтрация (все товары загружены, фильтруем в памяти)
@@ -216,12 +287,16 @@ const fetchProductsQuery = async (
   if (filters.category) {
     filteredProducts = filteredProducts.filter(p => {
       if (!p.pathName && !p.category) return false;
-      const productPath = (p.pathName || p.category || '').toLowerCase();
-      const filterCategory = filters.category!.toLowerCase();
-      const cleanProductPath = productPath.replace(/^\d+\.\s*/, '');
-      const cleanFilterCategory = filterCategory.replace(/^\d+\.\s*/, '');
-      return cleanProductPath === cleanFilterCategory || 
-             cleanProductPath.startsWith(cleanFilterCategory + '/');
+      
+      // Get the first part of pathName (main category) and clean it
+      const pathParts = (p.pathName || '').split('/');
+      const productCategory = (pathParts[0] || p.category || '').trim();
+      
+      // Clean both from number prefixes like "1. ", "2. " etc
+      const cleanProductCategory = productCategory.replace(/^\d+\.\s*/, '').toLowerCase();
+      const cleanFilterCategory = filters.category!.replace(/^\d+\.\s*/, '').toLowerCase();
+      
+      return cleanProductCategory === cleanFilterCategory;
     });
   }
   
@@ -231,8 +306,11 @@ const fetchProductsQuery = async (
       if (!p.pathName) return false;
       const pathParts = p.pathName.split('/');
       if (pathParts.length < 2) return false;
-      const productSubCategory = pathParts[pathParts.length - 1].trim().toLowerCase();
-      const filterSubCategory = filters.mini_category!.toLowerCase();
+      
+      // Clean both from number prefixes
+      const productSubCategory = pathParts[pathParts.length - 1].trim().replace(/^\d+\.\s*/, '').toLowerCase();
+      const filterSubCategory = filters.mini_category!.replace(/^\d+\.\s*/, '').toLowerCase();
+      
       return productSubCategory === filterSubCategory;
     });
   }
