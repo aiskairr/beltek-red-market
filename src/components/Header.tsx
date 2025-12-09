@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, Search, ShoppingCart, User, X, ChevronDown, ChevronUp, Phone, Mail } from "lucide-react";
+import { Menu, Search, ShoppingCart, User, X, ChevronDown, ChevronUp, Phone, Mail, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/use-cart";
-import { moySkladAPI } from "@/lib/moysklad";
+import { moySkladAPI, cleanCategoryName } from "@/lib/moysklad";
+import { SubCategory } from "@/hooks/useCategories";
 
 export const Header = ({ categories }: any) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,6 +19,7 @@ export const Header = ({ categories }: any) => {
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [expandedMobileCategories, setExpandedMobileCategories] = useState(new Set());
+  const [expandedMobileSubCategories, setExpandedMobileSubCategories] = useState(new Set());
 
   const handleMouseEnter = (categoryIndex) => {
     setActiveDropdown(categoryIndex);
@@ -36,6 +38,17 @@ export const Header = ({ categories }: any) => {
       newExpanded.add(categoryName);
     }
     setExpandedMobileCategories(newExpanded);
+  };
+
+  // Функция для переключения раскрытия мобильных подкатегорий третьего уровня
+  const toggleMobileSubCategory = (subCategoryKey) => {
+    const newExpanded = new Set(expandedMobileSubCategories);
+    if (newExpanded.has(subCategoryKey)) {
+      newExpanded.delete(subCategoryKey);
+    } else {
+      newExpanded.add(subCategoryKey);
+    }
+    setExpandedMobileSubCategories(newExpanded);
   };
 
   // Close search results when clicking outside
@@ -141,6 +154,7 @@ export const Header = ({ categories }: any) => {
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
     setExpandedMobileCategories(new Set());
+    setExpandedMobileSubCategories(new Set());
   };
 
   return (
@@ -180,6 +194,14 @@ export const Header = ({ categories }: any) => {
       {/* Main header */}
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
+          {/* Mobile menu button - СЛЕВА */}
+          <button
+            className="md:hidden mr-3"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+
           {/* Logo */}
           <Link to="/" className="font-bold text-2xl text-belek-black">
             <span className="text-belek-red">Белек</span> Техника
@@ -298,12 +320,6 @@ export const Header = ({ categories }: any) => {
                 </Badge>
               )}
             </Link>
-            <button
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <Menu className="h-6 w-6" />
-            </button>
           </div>
         </div>
       </div>
@@ -318,37 +334,66 @@ export const Header = ({ categories }: any) => {
                 className="relative group"
               >
                 <Link
-                  to={`/category/${category.category}`}
+                  to={`/category/${encodeURIComponent(category.category)}`}
                   className="block px-4 py-3 hover:bg-belek-red hover:text-white transition-colors font-medium flex items-center"
                 >
-                  {category.category}
-                  {category.mini_categories && category.mini_categories.length > 0 && (
-                    <svg
-                      className="ml-1 w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                  {cleanCategoryName(category.category)}
+                  {category.mini_categories_detailed && category.mini_categories_detailed.length > 0 && (
+                    <ChevronDown className="ml-1 w-4 h-4" />
                   )}
                 </Link>
 
-                {/* Dropdown menu - показывается при hover через CSS */}
-                {category.mini_categories && category.mini_categories.length > 0 && (
-                  <div className="absolute top-full left-0 bg-white shadow-lg border border-gray-200 min-w-48 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                    <ul className="py-2">
-                      {category.mini_categories.map((miniCategory, miniIndex) => (
-                        <li key={miniIndex}>
-                          <Link
-                            to={`/category/${category.category}/${miniCategory}`}
-                            className="block px-4 py-2 text-gray-700 hover:bg-belek-red hover:text-white transition-colors whitespace-nowrap"
-                          >
-                            {miniCategory}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
+                {/* Dropdown menu с вложенными подкатегориями */}
+                {category.mini_categories_detailed && category.mini_categories_detailed.length > 0 && (
+                  <div className="absolute top-full left-0 bg-white shadow-2xl border border-gray-200 rounded-lg min-w-72 max-w-2xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-3">
+                    <div className="max-h-[500px] overflow-y-auto">
+                      <ul className="space-y-1 px-2">
+                        {category.mini_categories_detailed.map((subCategory: SubCategory, subIndex) => (
+                          <li key={subIndex} className="group/sub relative">
+                            {/* Подкатегория второго уровня */}
+                            <div className="flex items-center">
+                              <Link
+                                to={`/category/${encodeURIComponent(category.category)}/${encodeURIComponent(cleanCategoryName(subCategory.name))}`}
+                                className="flex-1 flex items-center justify-between px-3 py-2 text-gray-700 hover:bg-belek-red hover:text-white transition-colors rounded-lg font-medium"
+                              >
+                                <span>{cleanCategoryName(subCategory.name)}</span>
+                                {subCategory.subCategories && subCategory.subCategories.length > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs bg-gray-200 group-hover/sub:bg-white/20 px-2 py-0.5 rounded-full">
+                                      {subCategory.subCategories.length}
+                                    </span>
+                                    <ChevronRight className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </Link>
+                            </div>
+
+                            {/* Вложенные подкатегории третьего уровня (выпадающее меню справа) */}
+                            {subCategory.subCategories && subCategory.subCategories.length > 0 && (
+                              <div className="absolute left-full top-0 ml-1 bg-white shadow-xl border border-gray-200 rounded-lg min-w-64 z-50 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 py-2">
+                                <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+                                  <p className="text-xs font-semibold text-gray-500 uppercase">
+                                    {cleanCategoryName(subCategory.name)}
+                                  </p>
+                                </div>
+                                <ul className="py-2 px-2 max-h-96 overflow-y-auto">
+                                  {subCategory.subCategories.map((nestedSub, nestedIndex) => (
+                                    <li key={nestedIndex}>
+                                      <Link
+                                        to={`/category/${encodeURIComponent(category.category)}/${encodeURIComponent(cleanCategoryName(subCategory.name))}/${encodeURIComponent(cleanCategoryName(nestedSub.name))}`}
+                                        className="block px-3 py-2 text-sm text-gray-600 hover:bg-belek-red hover:text-white transition-colors rounded-lg"
+                                      >
+                                        {cleanCategoryName(nestedSub.name)}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 )}
               </li>
@@ -446,20 +491,20 @@ export const Header = ({ categories }: any) => {
               )}
             </form>
 
-            {/* Мобильные категории с подкатегориями */}
+            {/* Мобильные категории с вложенными подкатегориями */}
             <div className="max-h-80 overflow-y-auto">
               <ul className="divide-y divide-gray-100">
                 {categories.map((category) => (
                   <li key={category.category}>
                     <div className="flex items-center justify-between">
                       <Link
-                        to={`/category/${category.category}`}
+                        to={`/category/${encodeURIComponent(category.category)}`}
                         className="flex-1 py-3 font-medium"
                         onClick={closeMobileMenu}
                       >
-                        {category.category}
+                        {cleanCategoryName(category.category)}
                       </Link>
-                      {category.mini_categories && category.mini_categories.length > 0 && (
+                      {category.mini_categories_detailed && category.mini_categories_detailed.length > 0 && (
                         <button
                           onClick={() => toggleMobileCategory(category.category)}
                           className="p-2 text-gray-500 hover:text-belek-red transition-colors"
@@ -474,23 +519,62 @@ export const Header = ({ categories }: any) => {
                       )}
                     </div>
 
-                    {/* Подкатегории */}
-                    {category.mini_categories &&
-                      category.mini_categories.length > 0 &&
+                    {/* Подкатегории второго уровня */}
+                    {category.mini_categories_detailed &&
+                      category.mini_categories_detailed.length > 0 &&
                       expandedMobileCategories.has(category.category) && (
                         <div className="pb-2">
                           <ul className="bg-gray-50 rounded-lg mt-2 divide-y divide-gray-200">
-                            {category.mini_categories.map((miniCategory, miniIndex) => (
-                              <li key={miniIndex}>
-                                <Link
-                                  to={`/category/${category.category}/${miniCategory}`}
-                                  className="block px-4 py-2 text-sm text-gray-600 hover:bg-belek-red hover:text-white transition-colors"
-                                  onClick={closeMobileMenu}
-                                >
-                                  {miniCategory}
-                                </Link>
-                              </li>
-                            ))}
+                            {category.mini_categories_detailed.map((subCategory: SubCategory, subIndex) => {
+                              const subCategoryKey = `${category.category}-${subCategory.name}`;
+                              const hasNestedSubs = subCategory.subCategories && subCategory.subCategories.length > 0;
+
+                              return (
+                                <li key={subIndex}>
+                                  <div className="flex items-center justify-between">
+                                    <Link
+                                      to={`/category/${encodeURIComponent(category.category)}/${encodeURIComponent(cleanCategoryName(subCategory.name))}`}
+                                      className="flex-1 px-4 py-2 text-sm text-gray-700 hover:text-belek-red font-medium"
+                                      onClick={closeMobileMenu}
+                                    >
+                                      {cleanCategoryName(subCategory.name)}
+                                    </Link>
+                                    {hasNestedSubs && (
+                                      <button
+                                        onClick={() => toggleMobileSubCategory(subCategoryKey)}
+                                        className="p-2 text-gray-400 hover:text-belek-red transition-colors"
+                                        aria-label={`Показать подкатегории для ${subCategory.name}`}
+                                      >
+                                        {expandedMobileSubCategories.has(subCategoryKey) ? (
+                                          <ChevronUp size={14} />
+                                        ) : (
+                                          <ChevronDown size={14} />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {/* Подкатегории третьего уровня */}
+                                  {hasNestedSubs && expandedMobileSubCategories.has(subCategoryKey) && (
+                                    <div className="ml-4 mt-1 mb-2">
+                                      <ul className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                                        {subCategory.subCategories!.map((nestedSub, nestedIndex) => (
+                                          <li key={nestedIndex}>
+                                            <Link
+                                              to={`/category/${encodeURIComponent(category.category)}/${encodeURIComponent(cleanCategoryName(subCategory.name))}/${encodeURIComponent(cleanCategoryName(nestedSub.name))}`}
+                                              className="block px-4 py-2 text-xs text-gray-600 hover:bg-belek-red hover:text-white transition-colors"
+                                              onClick={closeMobileMenu}
+                                            >
+                                              {cleanCategoryName(nestedSub.name)}
+                                            </Link>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       )}

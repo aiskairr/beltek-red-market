@@ -8,12 +8,94 @@ import { useMoySkladProducts } from '@/hooks/useProduct';
 import mainpage from "../../public/mainpage2.png"
 import { useBrands } from '@/hooks/useBrands';
 import saleimage from "../../public/saleimage.png"
-import { useCategories, useCategoriesWithMutations } from '@/hooks/useCategories';
+import { useCategories, useCategoriesWithMutations, SubCategory } from '@/hooks/useCategories';
 import {FullPageLoader} from "../components/Preloader"
 import main1 from "../../public/main1.png"
 import main2 from "../../public/2main.png"
 import main3 from "../../public/3main.png"
 import { cleanCategoryName } from '@/lib/moysklad';
+
+// Компонент для отображения подкатегории с вложенными элементами
+const SubCategoryItem = ({
+  subCategory,
+  mainCategory
+}: {
+  subCategory: SubCategory;
+  mainCategory: string;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasChildren = subCategory.subCategories && subCategory.subCategories.length > 0;
+
+  return (
+    <div className="space-y-2">
+      {/* Подкатегория второго уровня */}
+      <div className="flex items-center">
+        <Link
+          to={`/category/${encodeURIComponent(mainCategory)}/${encodeURIComponent(cleanCategoryName(subCategory.name))}`}
+          className="group/item flex-1 flex items-center justify-between px-4 py-3 rounded-xl bg-white hover:bg-belek-red text-gray-700 hover:text-white transition-all duration-200 border border-gray-200 hover:border-belek-red shadow-sm hover:shadow-md"
+        >
+          <span className="text-sm font-medium flex items-center">
+            <svg className="w-4 h-4 mr-2 opacity-0 group-hover/item:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {cleanCategoryName(subCategory.name)}
+          </span>
+          <div className="flex items-center gap-2">
+            {hasChildren && (
+              <span className="text-xs bg-gray-200 group-hover/item:bg-white/20 px-2 py-1 rounded-full">
+                {subCategory.subCategories!.length}
+              </span>
+            )}
+            <svg className="w-4 h-4 opacity-30 group-hover/item:opacity-100 group-hover/item:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+
+        {/* Кнопка раскрытия вложенных подкатегорий */}
+        {hasChildren && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="ml-2 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-belek-red hover:text-white text-gray-600 transition-all duration-200 border border-gray-200 hover:border-belek-red"
+            aria-label={isExpanded ? "Свернуть" : "Развернуть"}
+          >
+            <svg
+              className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Вложенные подкатегории третьего уровня */}
+      {hasChildren && isExpanded && (
+        <div className="ml-6 pl-4 border-l-2 border-gray-200 space-y-2 animate-in slide-in-from-top-2 duration-200">
+          {subCategory.subCategories!.map((nestedSub, idx) => (
+            <Link
+              key={idx}
+              to={`/category/${encodeURIComponent(mainCategory)}/${encodeURIComponent(cleanCategoryName(subCategory.name))}/${encodeURIComponent(cleanCategoryName(nestedSub.name))}`}
+              className="group/nested flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 hover:bg-belek-red/10 text-gray-600 hover:text-belek-red transition-all duration-200 border border-transparent hover:border-belek-red/30"
+            >
+              <span className="text-sm flex items-center">
+                <svg className="w-3 h-3 mr-2 opacity-0 group-hover/nested:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                {cleanCategoryName(nestedSub.name)}
+              </span>
+              <svg className="w-3 h-3 opacity-30 group-hover/nested:opacity-100 group-hover/nested:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Index = () => {
 
@@ -203,56 +285,92 @@ const Index = () => {
         </section>
 
         {/* Categories */}
-        <section className="py-12 md:py-16">
+        <section className="py-16 md:py-20 bg-gradient-to-b from-white to-gray-50">
           <div className="container mx-auto px-4">
-            <h2 className="section-header">Популярные категории</h2>
-            
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+                Популярные категории
+              </h2>
+              <p className="text-gray-600 text-lg">Выберите интересующую категорию товаров</p>
+            </div>
+
             {CategoriesLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="bg-belek-gray rounded-lg p-4 animate-pulse">
-                    <div className="aspect-square bg-gray-300 rounded-lg mb-3"></div>
-                    <div className="h-4 bg-gray-300 rounded"></div>
+                  <div key={i} className="bg-white rounded-2xl p-6 shadow-lg animate-pulse">
+                    <div className="h-8 bg-gray-300 rounded-lg mb-4"></div>
+                    <div className="space-y-2">
+                      {[...Array(4)].map((_, j) => (
+                        <div key={j} className="h-10 bg-gray-200 rounded-lg"></div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {categoriesData.map((category) => (
-                  <div key={category.category} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                  <div
+                    key={category.category}
+                    className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-belek-red/30"
+                  >
                     {/* Основная категория */}
                     <Link
-                      to={`/category/${category.category}`}
-                      className="block bg-belek-red text-white p-4 hover:bg-red-700 transition-colors"
+                      to={`/category/${encodeURIComponent(category.category)}`}
+                      className="block relative overflow-hidden"
                     >
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-lg">{cleanCategoryName(category.category)}</h3>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                      {/* Градиентный фон */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-belek-red via-red-600 to-red-700 opacity-100 group-hover:opacity-90 transition-opacity"></div>
+
+                      {/* Декоративные элементы */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl transform translate-x-8 -translate-y-8"></div>
+                      <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full blur-xl transform -translate-x-4 translate-y-4"></div>
+
+                      <div className="relative p-6 flex items-center justify-between group-hover:transform group-hover:scale-[1.02] transition-transform">
+                        <div className="flex items-center space-x-4">
+                          {/* Иконка категории */}
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                          </div>
+
+                          <h3 className="font-bold text-xl text-white drop-shadow-sm">
+                            {cleanCategoryName(category.category)}
+                          </h3>
+                        </div>
+
+                        {/* Стрелка */}
+                        <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                          <svg className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
                       </div>
                     </Link>
-                    
-                    {/* Подкатегории */}
-                    {category.mini_categories && category.mini_categories.length > 0 && (
-                      <div className="p-3 bg-gray-50">
-                        <div className="grid grid-cols-2 gap-2">
-                          {category.mini_categories.slice(0, 6).map((miniCategory, index) => (
-                            <Link
+
+                    {/* Подкатегории с вложенной структурой */}
+                    {category.mini_categories_detailed && category.mini_categories_detailed.length > 0 && (
+                      <div className="p-6 bg-gradient-to-b from-gray-50 to-white">
+                        <div className="space-y-3">
+                          {category.mini_categories_detailed.slice(0, 6).map((subCategory, index) => (
+                            <SubCategoryItem
                               key={index}
-                              to={`/category/${category.category}/${miniCategory}`}
-                              className="text-sm text-gray-700 hover:text-belek-red hover:bg-white px-3 py-2 rounded transition-colors border border-gray-200 hover:border-belek-red"
-                            >
-                              {cleanCategoryName(miniCategory)}
-                            </Link>
+                              subCategory={subCategory}
+                              mainCategory={category.category}
+                            />
                           ))}
                         </div>
-                        {category.mini_categories.length > 6 && (
+
+                        {category.mini_categories_detailed.length > 6 && (
                           <Link
-                            to={`/category/${category.category}`}
-                            className="block text-center text-sm text-belek-red hover:underline mt-2"
+                            to={`/category/${encodeURIComponent(category.category)}`}
+                            className="flex items-center justify-center mt-4 text-sm font-semibold text-belek-red hover:text-red-700 transition-colors group/more"
                           >
-                            Показать все ({category.mini_categories.length})
+                            <span>Показать все ({category.mini_categories_detailed.length})</span>
+                            <svg className="w-4 h-4 ml-1 group-hover/more:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
                           </Link>
                         )}
                       </div>

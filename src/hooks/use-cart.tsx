@@ -12,7 +12,7 @@ export interface Product {
   category: string;
   description: string;
   templates?: Array<{
-    template: string;
+    name: string;
     value: string;
   }>;
 }

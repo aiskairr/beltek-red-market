@@ -92,6 +92,12 @@ export interface MoySkladProduct {
     type: string;
     value: any;
   }>;
+  characteristics?: Array<{
+    meta: any;
+    id: string;
+    name: string;
+    value: string;
+  }>;
 }
 
 export interface MoySkladProductFolder {
@@ -117,6 +123,61 @@ export interface MoySkladProductFolder {
   productFolder?: {
     meta: any;
   };
+}
+
+export interface MoySkladVariant {
+  meta: {
+    href: string;
+    metadataHref: string;
+    type: string;
+    mediaType: string;
+    uuidHref: string;
+  };
+  id: string;
+  accountId: string;
+  updated: string;
+  name: string;
+  description?: string;
+  code?: string;
+  externalCode?: string;
+  archived: boolean;
+  characteristics?: Array<{
+    meta: any;
+    id: string;
+    name: string;
+    value: string;
+  }>;
+  images?: {
+    meta: {
+      href: string;
+      type: string;
+      mediaType: string;
+      size: number;
+      limit: number;
+      offset: number;
+    };
+  };
+  salePrices?: Array<{
+    value: number;
+    currency: any;
+    priceType: any;
+  }>;
+  buyPrice?: {
+    value: number;
+    currency: any;
+  };
+  barcodes?: Array<{
+    ean13?: string;
+    ean8?: string;
+    code128?: string;
+  }>;
+  product: {
+    meta: any;
+  };
+  stock?: number;
+  reserve?: number;
+  inTransit?: number;
+  quantity?: number;
 }
 
 export interface MoySkladImage {
@@ -204,8 +265,11 @@ export const moySkladAPI = {
   },
 
   async getProduct(id: string): Promise<MoySkladProduct> {
-    const url = `${MOYSKLAD_API_URL}/entity/product/${id}`;
-    
+    // Expand attributes and characteristics to get product details
+    const url = `${MOYSKLAD_API_URL}/entity/product/${id}?expand=attributes,characteristics`;
+
+    console.log('🔍 Fetching product with attributes and characteristics:', url);
+
     const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
@@ -279,7 +343,161 @@ export const moySkladAPI = {
   // Attributes (for product characteristics)
   async getProductAttributes(): Promise<any> {
     const url = `${MOYSKLAD_API_URL}/entity/product/metadata`;
-    
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`MoySklad API Error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  // Variants (Product Modifications)
+  async getVariants(params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    filter?: string;
+  }): Promise<MoySkladListResponse<MoySkladVariant>> {
+    const queryParams = new URLSearchParams();
+
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.filter) queryParams.append('filter', params.filter);
+
+    const url = `${MOYSKLAD_API_URL}/entity/variant?${queryParams.toString()}`;
+
+    console.log('🔍 Fetching variants:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Variants API Error:', errorText);
+      throw new Error(`MoySklad API Error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async getVariant(id: string): Promise<MoySkladVariant> {
+    const url = `${MOYSKLAD_API_URL}/entity/variant/${id}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`MoySklad API Error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  // Get variants for specific product
+  async getProductVariants(productId: string): Promise<MoySkladListResponse<MoySkladVariant>> {
+    // Основной вариант: грузим товар с expand=modifications,modifications.characteristics
+    const productUrl = `${MOYSKLAD_API_URL}/entity/product/${productId}?expand=modifications,modifications.characteristics`;
+
+    console.log('🔍 Fetching product with variants (modifications):', productUrl);
+
+    const response = await fetch(productUrl, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Product Variants API Error:', errorText);
+      throw new Error(`MoySklad API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const productData = await response.json();
+
+    if (productData.modifications && productData.modifications.rows) {
+      return productData.modifications;
+    }
+
+    // Запасной вариант: загружаем список variants и фильтруем по product.href на клиенте
+    try {
+      const MAX_LIMIT = 1000;
+      let offset = 0;
+      let allRows: MoySkladVariant[] = [];
+      let total = 0;
+
+      while (true) {
+        const url = `${MOYSKLAD_API_URL}/entity/variant?limit=${MAX_LIMIT}&offset=${offset}`;
+        console.log('🔍 Fallback fetching variants batch:', url);
+
+        const variantsResp = await fetch(url, {
+          method: 'GET',
+          headers: getHeaders(),
+        });
+
+        if (!variantsResp.ok) {
+          const errorText = await variantsResp.text();
+          console.error('❌ Fallback variants API Error:', errorText);
+          break;
+        }
+
+        const variantsData = await variantsResp.json();
+        const rows = variantsData?.rows || [];
+        total = variantsData?.meta?.size || rows.length;
+
+        allRows = allRows.concat(rows);
+
+        if (allRows.length >= total || rows.length < MAX_LIMIT) {
+          break;
+        }
+
+        offset += MAX_LIMIT;
+      }
+
+      const filteredRows = allRows.filter(
+        (v) => v.product?.meta?.href?.includes(`/entity/product/${productId}`)
+      );
+
+      return {
+        context: productData.context || {},
+        meta: {
+          href: '',
+          type: 'variant',
+          mediaType: 'application/json',
+          size: filteredRows.length,
+          limit: MAX_LIMIT,
+          offset: 0,
+        },
+        rows: filteredRows,
+      };
+    } catch (fallbackError) {
+      console.error('❌ Fallback variant filtering failed:', fallbackError);
+      return {
+        context: productData.context || {},
+        meta: {
+          href: '',
+          type: 'variant',
+          mediaType: 'application/json',
+          size: 0,
+          limit: 1000,
+          offset: 0,
+        },
+        rows: [],
+      };
+    }
+  },
+
+  async getVariantImages(variantId: string): Promise<MoySkladListResponse<MoySkladImage>> {
+    const url = `${MOYSKLAD_API_URL}/entity/variant/${variantId}/images`;
+
     const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
@@ -293,11 +511,11 @@ export const moySkladAPI = {
   },
 };
 
-// Helper function to remove number prefixes like "1. ", "2. " etc from category names
+// Helper function to remove number prefixes like "1. ", "2. ", "1 ", "2 " etc from category names
 // Use this ONLY for display, not for internal data/matching
 export const cleanCategoryName = (name: string): string => {
-  // Remove leading digits followed by dot and space: "1. Category" -> "Category"
-  return name.replace(/^\d+\.\s*/, '').trim();
+  // Remove leading digits followed by optional dot and space: "1. Category" or "1 Category" -> "Category"
+  return name.replace(/^\d+\.?\s*/, '').trim();
 };
 
 // Helper functions to transform MoySklad data to our app format
@@ -322,17 +540,23 @@ export const transformMoySkladProduct = (msProduct: MoySkladProduct) => {
   );
   const brand = brandAttr ? String(brandAttr.value || '') : '';
 
-  // Transform attributes to templates (exclude brand as it's a separate field)
+  // For now, only use attributes from product (not characteristics)
+  // Characteristics will be loaded from variants
   const templates = msProduct.attributes
-    ?.filter(attr => 
-      attr.name.toLowerCase() !== 'бренд' && 
+    ?.filter(attr =>
+      attr.name.toLowerCase() !== 'бренд' &&
       attr.name.toLowerCase() !== 'brand' &&
-      attr.name.toLowerCase() !== 'производитель'
+      attr.name.toLowerCase() !== 'производитель' &&
+      attr.name.toLowerCase() !== 'наименование для сайта'
     )
     .map(attr => ({
       name: attr.name,
       value: String(attr.value || ''),
     })) || [];
+
+  // Логирование для отладки
+  console.log('📦 Product:', msProduct.name);
+  console.log('📋 Product templates (attributes):', templates);
 
   return {
     id: msProduct.id,

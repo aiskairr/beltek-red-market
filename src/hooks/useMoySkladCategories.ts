@@ -9,11 +9,19 @@ import {
   clearCategoriesCache
 } from '@/lib/moysklad';
 
+export interface SubCategory {
+  id: string;
+  name: string;
+  pathName?: string;
+  subCategories?: SubCategory[]; // Вложенные подкатегории третьего уровня
+}
+
 export interface Category {
   id: string;
   category: string;
   image?: string;
   mini_categories?: string[];
+  mini_categories_detailed?: SubCategory[]; // Детальная информация о подкатегориях
   templates?: string[];
   pathName?: string;
   archived?: boolean;
@@ -29,24 +37,36 @@ const QUERY_KEYS = {
 // Transform MoySklad folders to our category structure
 const transformToCategories = (folders: MoySkladProductFolder[]): Category[] => {
   const categoryMap = new Map<string, Category>();
+  const allFoldersMap = new Map<string, { id: string; name: string; pathName: string; archived: boolean }>();
 
-  console.log('=== TRANSFORMING CATEGORIES ===');
+  console.log('=== TRANSFORMING CATEGORIES WITH NESTED STRUCTURE ===');
   console.log('Total folders:', folders.length);
 
-  // First pass: create main categories
+  // First: Create a map of all folders for easy lookup
   folders.forEach(folder => {
     const transformed = transformMoySkladProductFolder(folder);
-    
+    allFoldersMap.set(transformed.name, {
+      id: folder.id,
+      name: transformed.name,
+      pathName: transformed.pathName || '',
+      archived: transformed.archived
+    });
+  });
+
+  // Second pass: create main categories
+  folders.forEach(folder => {
+    const transformed = transformMoySkladProductFolder(folder);
+
     if (transformed.isMainCategory && !transformed.archived) {
-      // Используем имя категории как ключ, а не pathName (т.к. у всех главных категорий pathName пустой)
       const categoryName = transformed.name;
-      
+
       if (!categoryMap.has(categoryName)) {
         categoryMap.set(categoryName, {
           id: folder.id,
           category: transformed.name,
-          pathName: transformed.name, // Для главной категории pathName = её имя
+          pathName: transformed.name,
           mini_categories: [],
+          mini_categories_detailed: [],
           templates: [],
           archived: transformed.archived,
         });
@@ -57,41 +77,66 @@ const transformToCategories = (folders: MoySkladProductFolder[]): Category[] => 
 
   console.log('Main categories created:', categoryMap.size);
 
-  // Second pass: add mini categories
-  console.log('\n=== SECOND PASS: Adding subcategories ===');
-  console.log('Available parent keys in map:', Array.from(categoryMap.keys()));
-  
-  folders.forEach(folder => {
-    const transformed = transformMoySkladProductFolder(folder);
-    
-    if (!transformed.isMainCategory && !transformed.archived && transformed.parentPath) {
-      console.log(`\nProcessing subcategory: "${transformed.name}"`);
-      console.log(`  Looking for parent: "${transformed.parentPath}"`);
-      
-      const parentCategory = categoryMap.get(transformed.parentPath);
-      
-      if (parentCategory) {
-        if (!parentCategory.mini_categories) {
-          parentCategory.mini_categories = [];
+  // Helper function to build subcategory tree
+  const buildSubCategoryTree = (parentPath: string): SubCategory[] => {
+    const subCategories: SubCategory[] = [];
+
+    folders.forEach(folder => {
+      const transformed = transformMoySkladProductFolder(folder);
+
+      // Find direct children of this parent
+      if (!transformed.archived && transformed.parentPath === parentPath) {
+        const subCategory: SubCategory = {
+          id: folder.id,
+          name: transformed.name,
+          pathName: transformed.pathName,
+          subCategories: []
+        };
+
+        // Recursively build children for this subcategory
+        // The full path for children would be "parentPath/currentName"
+        const childrenPath = parentPath ? `${parentPath}/${transformed.name}` : transformed.name;
+        const children = buildSubCategoryTree(childrenPath);
+
+        if (children.length > 0) {
+          subCategory.subCategories = children;
         }
-        if (!parentCategory.mini_categories.includes(transformed.name)) {
-          parentCategory.mini_categories.push(transformed.name);
-          console.log(`  ✓ Added to parent: "${parentCategory.category}"`);
-        }
-      } else {
-        console.log(`  ✗ Parent NOT FOUND!`);
-        console.log(`  Available keys:`, Array.from(categoryMap.keys()));
+
+        subCategories.push(subCategory);
       }
-    }
+    });
+
+    return subCategories;
+  };
+
+  // Third pass: add mini categories with nested structure
+  console.log('\n=== THIRD PASS: Adding subcategories with nesting ===');
+
+  categoryMap.forEach((category, categoryName) => {
+    // Build the tree of subcategories for this main category
+    const detailedSubCategories = buildSubCategoryTree(categoryName);
+
+    category.mini_categories_detailed = detailedSubCategories;
+
+    // Also keep the flat list for backward compatibility
+    category.mini_categories = detailedSubCategories.map(sub => sub.name);
+
+    console.log(`Category "${categoryName}":`, {
+      directChildren: detailedSubCategories.length,
+      flatList: category.mini_categories.length
+    });
   });
 
-  const result = Array.from(categoryMap.values()).sort((a, b) => 
+  const result = Array.from(categoryMap.values()).sort((a, b) =>
     a.category.localeCompare(b.category)
   );
-  
-  console.log('Final categories with subcategories:');
+
+  console.log('Final categories with nested subcategories:');
   result.forEach(cat => {
-    console.log(`  ${cat.category}: ${cat.mini_categories?.length || 0} subcategories`);
+    console.log(`  ${cat.category}: ${cat.mini_categories_detailed?.length || 0} direct subcategories`);
+    cat.mini_categories_detailed?.forEach(sub => {
+      console.log(`    - ${sub.name}: ${sub.subCategories?.length || 0} nested items`);
+    });
   });
   console.log('===============================');
 

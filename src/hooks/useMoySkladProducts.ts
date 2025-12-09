@@ -404,12 +404,46 @@ export const useMoySkladProduct = (id: string) => {
     queryFn: async (): Promise<Product> => {
       const msProduct = await moySkladAPI.getProduct(id);
       const product = transformMoySkladProduct(msProduct);
-      
+
       // Fetch images
       const images = await fetchProductImages(id);
       product.images = images;
       product.image = images[0] || '';
-      
+
+      // If product has variants, load characteristics from ALL variants and combine them
+      if (msProduct.variantsCount && msProduct.variantsCount > 0) {
+        try {
+          const variantsResponse = await moySkladAPI.getProductVariants(id);
+          if (variantsResponse.rows && variantsResponse.rows.length > 0) {
+            // Collect all unique characteristic names and their possible values
+            const characteristicsMap = new Map<string, Set<string>>();
+
+            variantsResponse.rows.forEach(variant => {
+              if (variant.characteristics) {
+                variant.characteristics.forEach(char => {
+                  if (!characteristicsMap.has(char.name)) {
+                    characteristicsMap.set(char.name, new Set());
+                  }
+                  characteristicsMap.get(char.name)!.add(char.value);
+                });
+              }
+            });
+
+            // Convert to templates format showing all possible values
+            const variantChars = Array.from(characteristicsMap.entries()).map(([name, values]) => ({
+              name: name,
+              value: Array.from(values).join(', ')
+            }));
+
+            // Combine with existing templates
+            product.templates = [...(product.templates || []), ...variantChars];
+            console.log('✨ Added characteristics from variants:', variantChars);
+          }
+        } catch (error) {
+          console.error('❌ Error loading variant characteristics:', error);
+        }
+      }
+
       return product;
     },
     enabled: !!id,
@@ -538,10 +572,70 @@ export const useMoySkladProductsWithMutations = (
     
     goToPage,
     searchProducts,
-    
+
     getProductById: utils.getProductById,
     prefetchProduct: utils.prefetchProduct,
-    
+
     refetch: productsQuery.refetch,
   };
+};
+
+// Hook for getting product variants (modifications)
+export const useMoySkladProductVariants = (productId: string) => {
+  const { toast } = useToast();
+
+  const query = useQuery({
+    queryKey: ['moysklad-variants', productId],
+    queryFn: async () => {
+      if (!productId) return [];
+
+      console.log('🔍 Fetching variants for product:', productId);
+
+      const variantsResponse = await moySkladAPI.getProductVariants(productId);
+
+      console.log('✅ Variants response:', variantsResponse);
+
+      // Transform variants to our format
+      const variants = await Promise.all(
+        variantsResponse.rows.map(async (msVariant) => {
+          // Get variant images
+          let images: string[] = [];
+          try {
+            const imagesResponse = await moySkladAPI.getVariantImages(msVariant.id);
+            images = imagesResponse.rows.map(img => img.meta.downloadHref);
+          } catch (error) {
+            console.warn('Could not fetch variant images:', error);
+          }
+
+          return {
+            id: msVariant.id,
+            name: msVariant.name,
+            price: (msVariant.salePrices?.[0]?.value || 0) / 100,
+            characteristics: msVariant.characteristics || [],
+            images,
+            stock: msVariant.stock || 0,
+            inStock: (msVariant.stock || 0) > 0,
+          };
+        })
+      );
+
+      console.log('✅ Transformed variants:', variants);
+
+      return variants;
+    },
+    enabled: !!productId,
+    staleTime: 60 * 60 * 1000, // 1 hour
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
+  });
+
+  if (query.error) {
+    console.error('❌ Error fetching variants:', query.error);
+    toast({
+      title: "Ошибка загрузки модификаций",
+      description: (query.error as Error).message,
+      variant: "destructive",
+    });
+  }
+
+  return query;
 };

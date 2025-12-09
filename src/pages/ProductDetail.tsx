@@ -7,30 +7,65 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useCart, Product } from '@/hooks/use-cart';
 import { ProductCard } from '@/components/ProductCard';
-import { useMoySkladProduct, useMoySkladProductsByCategory } from '@/hooks/useProduct';
+import { useMoySkladProduct, useMoySkladProductsByCategory, useProductVariants } from '@/hooks/useProduct';
 import { cleanCategoryName } from '@/lib/moysklad';
 
 const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const { addItem, getCount } = useCart();
 
   // Fetch product using MoySklad hook
   const { data: product, isLoading: productLoading } = useMoySkladProduct(productId || '');
-  
+  console.log('Product data:', product);
+  // Fetch product variants (modifications)
+  const { data: variants = [], isLoading: variantsLoading } = useProductVariants(productId || '');
+  // Автовыбор первого варианта, чтобы не требовать клика
+  useEffect(() => {
+    if (variants.length > 0 && !selectedVariantId) {
+      setSelectedVariantId(variants[0].id);
+    }
+  }, [variants, selectedVariantId]);
+
   // Fetch related products by category
   const { data: relatedProductsData = [] } = useMoySkladProductsByCategory(product?.category || '');
-  
+
   // Filter out current product and limit to 4
   const relatedProducts = relatedProductsData
     .filter(p => p.id !== productId)
     .slice(0, 4);
 
+  // Get selected variant or null
+  const selectedVariant = variants.find(v => v.id === selectedVariantId) || null;
+
   const handleAddToCart = () => {
-    if (product) {
-      addItem(product, quantity);
+    if (!product) return;
+
+    // If there are variants and none is selected, show error
+    if (variants.length > 0 && !selectedVariantId) {
+      alert('Пожалуйста, выберите вариант товара');
+      return;
     }
+
+    // Create product object with variant data if selected
+    const productToAdd = selectedVariant
+      ? {
+          ...product,
+          id: selectedVariant.id,
+          name: `${product.name} - ${selectedVariant.name}`,
+          price: selectedVariant.price,
+          in_stock: selectedVariant.inStock || false,
+          images: selectedVariant.images.length > 0 ? selectedVariant.images[0] : (product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : product.image),
+        }
+      : {
+          ...product,
+          in_stock: product.in_stock || false,
+          images: product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : product.image,
+        };
+
+    addItem(productToAdd, quantity);
   };
 
   // Получаем все изображения товара
@@ -197,10 +232,17 @@ const ProductDetail = () => {
 
                 {/* Price */}
                 <div className="flex items-baseline mb-6">
-                  <div className="text-3xl font-bold">{product.price.toLocaleString()} с</div>
+                  <div className="text-3xl font-bold">
+                    {selectedVariant
+                      ? selectedVariant.price.toLocaleString()
+                      : product.price.toLocaleString()
+                    } с
+                  </div>
                   {/* Commented out for now - can add discount price logic here */}
                   {/* <div className="text-lg text-gray-500 line-through ml-3">{(product.price * 1.2).toLocaleString()} с</div> */}
                 </div>
+
+               
 
                 {/* Stock and Delivery */}
                 <div className="flex items-center text-sm mb-6">
@@ -307,17 +349,21 @@ const ProductDetail = () => {
               </p>
             </TabsContent>
             <TabsContent value="specs" className="p-6 bg-white rounded-lg shadow mt-2">
+              <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
               {/* Отображение templates */}
-              {product.templates && product.templates.length > 0 && (
+              {product.templates && product.templates.length > 0 ? (
                 <div>
                   <div className="space-y-2">
                     {product.templates.map((template, index) => (
-                      <div key={index} className="">
-                        <span className="font-medium">{template.template}:</span> {template.value}
+                      <div key={index} className="flex border-b pb-2">
+                        <span className="font-medium text-gray-700 w-1/3">{template.name}:</span>
+                        <span className="text-gray-900 w-2/3">{template.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
+              ) : (
+                <p className="text-gray-500">Характеристики отсутствуют</p>
               )}
             </TabsContent>
             <TabsContent value="reviews" className="p-6 bg-white rounded-lg shadow mt-2">

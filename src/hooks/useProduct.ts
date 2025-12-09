@@ -2,13 +2,14 @@
 export * from './useMoySkladProducts';
 
 // Re-export for backward compatibility
-export { 
+export {
   useMoySkladProducts as useProducts,
   useMoySkladProduct as useProduct,
   useMoySkladProductsByCategory as useProductsByCategory,
   useInfiniteMoySkladProducts as useInfiniteProducts,
   useMoySkladProductUtils as useProductUtils,
-  useMoySkladProductsWithMutations as useProductsWithMutations
+  useMoySkladProductsWithMutations as useProductsWithMutations,
+  useMoySkladProductVariants as useProductVariants
 } from './useMoySkladProducts';
 
 // Stub mutations for admin components (read-only with MoySklad)
