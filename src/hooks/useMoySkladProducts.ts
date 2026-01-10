@@ -282,37 +282,79 @@ const fetchProductsQuery = async (
 
   // Клиентская фильтрация (все товары загружены, фильтруем в памяти)
   let filteredProducts = products;
-  
+
+  // DEBUGGING: Log some sample pathNames
+  console.log('🔍 Sample pathNames from products:');
+  products.slice(0, 5).forEach((p, i) => {
+    console.log(`  ${i + 1}. pathName: "${p.pathName}", category: "${p.category}", mini_category: "${p.mini_category}"`);
+  });
+
   // Filter by category if specified
   if (filters.category) {
+    console.log(`🔍 Filtering by category: "${filters.category}"`);
+    const beforeCount = filteredProducts.length;
+
     filteredProducts = filteredProducts.filter(p => {
       if (!p.pathName && !p.category) return false;
-      
+
       // Get the first part of pathName (main category) and clean it
       const pathParts = (p.pathName || '').split('/');
       const productCategory = (pathParts[0] || p.category || '').trim();
-      
-      // Clean both from number prefixes like "1. ", "2. " etc
-      const cleanProductCategory = productCategory.replace(/^\d+\.\s*/, '').toLowerCase();
-      const cleanFilterCategory = filters.category!.replace(/^\d+\.\s*/, '').toLowerCase();
-      
-      return cleanProductCategory === cleanFilterCategory;
+
+      // Clean both from number prefixes like "1. ", "2. ", "1 ", "2 " etc (unified with cleanCategoryName)
+      const cleanProductCategory = productCategory.replace(/^\d+\.?\s*/, '').toLowerCase();
+      const cleanFilterCategory = filters.category!.replace(/^\d+\.?\s*/, '').toLowerCase();
+
+      const matches = cleanProductCategory === cleanFilterCategory;
+
+      // Log first few matches/mismatches
+      if (filteredProducts.length < 3) {
+        console.log(`  Product: "${p.name}"`);
+        console.log(`    pathName: "${p.pathName}"`);
+        console.log(`    productCategory: "${productCategory}" -> cleaned: "${cleanProductCategory}"`);
+        console.log(`    filterCategory: "${filters.category}" -> cleaned: "${cleanFilterCategory}"`);
+        console.log(`    matches: ${matches}`);
+      }
+
+      return matches;
     });
+
+    console.log(`  ✅ Category filter: ${beforeCount} -> ${filteredProducts.length} products`);
   }
-  
+
   // Filter by mini_category if specified
   if (filters.mini_category) {
+    console.log(`🔍 Filtering by mini_category: "${filters.mini_category}"`);
+    const beforeCount = filteredProducts.length;
+
     filteredProducts = filteredProducts.filter(p => {
       if (!p.pathName) return false;
       const pathParts = p.pathName.split('/');
       if (pathParts.length < 2) return false;
-      
-      // Clean both from number prefixes
-      const productSubCategory = pathParts[pathParts.length - 1].trim().replace(/^\d+\.\s*/, '').toLowerCase();
-      const filterSubCategory = filters.mini_category!.replace(/^\d+\.\s*/, '').toLowerCase();
-      
-      return productSubCategory === filterSubCategory;
+
+      // Use the SECOND element (index 1) which is the first level subcategory
+      // Example: "ДЛЯ КУХНИ/Мелкая техника/Аэрогрили" -> check "Мелкая техника"
+      const productSubCategory = pathParts[1].trim().replace(/^\d+\.?\s*/, '').toLowerCase();
+      const filterSubCategory = filters.mini_category!.replace(/^\d+\.?\s*/, '').toLowerCase();
+
+      const matches = productSubCategory === filterSubCategory;
+
+      // Log first few matches/mismatches for debugging
+      if (filteredProducts.filter(fp => {
+        const parts = fp.pathName?.split('/') || [];
+        return parts.length >= 2 && parts[1].trim().replace(/^\d+\.?\s*/, '').toLowerCase() === filterSubCategory;
+      }).length < 3) {
+        console.log(`  Product: "${p.name}"`);
+        console.log(`    pathName: "${p.pathName}"`);
+        console.log(`    productSubCategory (pathParts[1]): "${pathParts[1]}" -> cleaned: "${productSubCategory}"`);
+        console.log(`    filterSubCategory: "${filters.mini_category}" -> cleaned: "${filterSubCategory}"`);
+        console.log(`    matches: ${matches}`);
+      }
+
+      return matches;
     });
+
+    console.log(`  ✅ Mini category filter: ${beforeCount} -> ${filteredProducts.length} products`);
   }
 
   // Filter by brand if specified

@@ -38,7 +38,7 @@ export const ProductCard = ({ product }: any) => {
   //       return '/appliance.jpg';
   //   }
   // };
-
+  console.log(product, product.name)
   return (
     <div className="product-card group">
       <Link to={`/product/${product.id}`} className="block">
@@ -49,11 +49,7 @@ export const ProductCard = ({ product }: any) => {
             loading="lazy"
             className="absolute top-0 left-0 w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
           />
-          <div className="absolute top-3 right-3">
-            <div className="flex flex-col gap-2">
-              <span className="bg-belek-red text-white text-xs px-2 py-1 rounded">Новинка</span>
-            </div>
-          </div>
+         
         </div>
         
         <div className="p-4">

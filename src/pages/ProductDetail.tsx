@@ -124,6 +124,12 @@ const ProductDetail = () => {
   if (!product) {
     return <div>Loading...</div>;
   }
+const rawText = product.templates[0].value;
+
+  // Это регулярное выражение ищет и захватывает (благодаря скобкам)
+  // названия характеристик (любые слова/цифры/пробелы перед двоеточием)
+  const formattedTextWithBreaks = rawText.replace(/\s(?=\b[\wА-Яа-я\s\(\)"'-]+:)/gu, '\n');
+
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -352,18 +358,54 @@ const ProductDetail = () => {
               <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
               {/* Отображение templates */}
               {product.templates && product.templates.length > 0 ? (
-                <div>
-                  <div className="space-y-2">
-                    {product.templates.map((template, index) => (
-                      <div key={index} className="flex border-b pb-2">
-                        <span className="font-medium text-gray-700 w-1/3">{template.name}:</span>
-                        <span className="text-gray-900 w-2/3">{template.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <div className="flex border-b pb-2">
+
+  <div>
+    <span className="text-gray-900 w-2/3">
+  {product.templates[0].value
+    .split("*") // Разбиваем строку на отдельные пары свойств/значений
+    .map((item, index) => {
+      const trimmedItem = item.trim();
+
+      if (!trimmedItem) return null;
+
+      // Используем регулярное выражение для разделения:
+      // Оно ищет "текст до двоеточия" И "текст после двоеточия"
+      const match = trimmedItem.match(/^([^:]+):(.+)$/);
+
+      if (!match) {
+        // Если формат не "Ключ: Значение", выводим как есть
+        return <span key={index}>{trimmedItem}</span>;
+      }
+
+      // match[1] = Ключ (например, "Диагональ")
+      // match[2] = Значение (например, " 50" (127см)")
+      const key = match[1].trim(); 
+      const value = match[2]; // Значение обычно уже имеет нужный пробел в начале
+
+      return (
+        <span key={index}>
+          {index > 0 && (
+            <>
+              <br />
+              <br />
+            </>
+          )}
+          {/* Делаем ключ жирным и добавляем двоеточие после него */}
+          <span className="font-bold">{key}:</span>
+          <span>{value}</span>
+        </span>
+      );
+    })}
+</span>
+
+
+  </div>
+  
+</div>
+
               ) : (
-                <p className="text-gray-500">Характеристики отсутствуют</p>
+                <p className="text-gray-500">Характеристики отсутствуют </p>
               )}
             </TabsContent>
             <TabsContent value="reviews" className="p-6 bg-white rounded-lg shadow mt-2">

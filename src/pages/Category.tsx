@@ -66,7 +66,7 @@ const Category = () => {
     return { id: '0', category: decodedSlug, mini_categories: [], pathName: decodedSlug };
   }, [categories, categorySlug]);
 
-  // Создаем фильтры для продуктов
+  // Создаем фильтры для продуктов (БЕЗ бренда - фильтр по бренду применим на клиенте)
 const productFilters: ProductFilters = useMemo(() => {
   const filters: ProductFilters = {};
 
@@ -107,10 +107,8 @@ const productFilters: ProductFilters = useMemo(() => {
     console.log('  - Filter value:', filters.mini_category);
   }
 
-  // Фильтруем по бренду
-  if (selectedBrands.length > 0) {
-    filters.brand = selectedBrands[0]; // API поддерживает один бренд
-  }
+  // НЕ фильтруем по бренду здесь - это будет на клиенте!
+  // Причина: нужно показывать все бренды в фильтре, даже если выбран конкретный бренд
 
   // Фильтруем по цене (только если пользователь изменил диапазон)
   const DEFAULT_MAX = 999999;
@@ -122,7 +120,7 @@ const productFilters: ProductFilters = useMemo(() => {
   console.log('📊 Final Product Filters:', filters);
 
   return filters;
-}, [categorySlug, subCategorySlug, currentCategory, selectedBrands, priceRange]);
+}, [categorySlug, subCategorySlug, currentCategory, priceRange]);
 
 // Используем infinite scroll для продуктов
   // Для основной категории (без подкатегории) загружаем больше товаров для правильного подсчета
@@ -137,14 +135,24 @@ const productFilters: ProductFilters = useMemo(() => {
     error: productsError
   } = useInfiniteProducts(productFilters, pageSize);
 
-  // Получаем все продукты из всех страниц (фильтрация уже на API уровне)
+  // Получаем все продукты из всех страниц и применяем клиентскую фильтрацию по бренду
 const products = useMemo(() => {
-  const allProducts = productsData?.pages.flatMap(page => page.products) || [];
-  
-  console.log('📊 Products loaded:', allProducts.length);
-  
+  let allProducts = productsData?.pages.flatMap(page => page.products) || [];
+
+  console.log('📊 Products loaded from API:', allProducts.length);
+
+  // Применяем фильтр по бренду на клиенте
+  if (selectedBrands.length > 0) {
+    allProducts = allProducts.filter(product =>
+      selectedBrands.some(brand =>
+        product.brand?.toLowerCase() === brand.toLowerCase()
+      )
+    );
+    console.log(`📊 After brand filter (${selectedBrands.join(', ')}):`, allProducts.length);
+  }
+
   return allProducts;
-}, [productsData]);
+}, [productsData, selectedBrands]);
 
   const totalCount = productsData?.pages[0]?.totalCount || 0;
 
@@ -152,44 +160,51 @@ const products = useMemo(() => {
 const subCategories: SubCategory[] = useMemo(() => {
   console.log('=== SUBCATEGORIES DEBUG ===');
   console.log('Current category:', currentCategory);
-  
+
   if (!currentCategory?.mini_categories || !currentCategory?.pathName) {
     return [];
   }
 
   // Подсчитываем количество товаров в каждой подкатегории
   const subs = currentCategory.mini_categories.map(name => {
-    // Ищем товары где pathName заканчивается на эту подкатегорию
+    // Ищем товары где второй элемент pathName (index 1) совпадает с подкатегорией
+    // Используем cleanCategoryName для унификации сравнения
     const count = products.filter(p => {
       if (!p.pathName) return false;
       const parts = p.pathName.split('/');
       if (parts.length < 2) return false;
-      const subCat = parts[1].trim();
-      return subCat.toLowerCase() === name.toLowerCase();
+
+      // Очищаем оба названия от префиксов с номерами
+      const subCat = parts[1].trim().replace(/^\d+\.?\s*/, '').toLowerCase();
+      const filterName = name.replace(/^\d+\.?\s*/, '').toLowerCase();
+
+      return subCat === filterName;
     }).length;
-    
+
     console.log(`Subcategory "${name}": ${count} products`);
-    
+
     return {
       name,
       slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
       count: count
     };
   });
-  
+
   console.log('===========================');
   return subs;
 }, [currentCategory, products]);
-  // Доступные бренды в категории (фильтруем по продуктам)
+  // Доступные бренды в категории (из ВСЕХ продуктов, без фильтра по бренду)
   const availableBrandsInCategory = useMemo(() => {
     const brandNames = new Set<string>();
-    products.forEach(product => {
+    // Используем productsData напрямую, чтобы получить все продукты без клиентской фильтрации по бренду
+    const allProducts = productsData?.pages.flatMap(page => page.products) || [];
+    allProducts.forEach(product => {
       if (product.brand && product.brand.trim()) {
         brandNames.add(product.brand);
       }
     });
     return Array.from(brandNames);
-  }, [products]);
+  }, [productsData]);
 
   const availableBrands = useMemo(() => {
     return brands.filter(brand => availableBrandsInCategory.includes(brand.name));
