@@ -124,11 +124,9 @@ const ProductDetail = () => {
   if (!product) {
     return <div>Loading...</div>;
   }
-const rawText = product.templates[0].value;
 
   // Это регулярное выражение ищет и захватывает (благодаря скобкам)
   // названия характеристик (любые слова/цифры/пробелы перед двоеточием)
-  const formattedTextWithBreaks = rawText.replace(/\s(?=\b[\wА-Яа-я\s\(\)"'-]+:)/gu, '\n');
 
 
   return (
